@@ -84,7 +84,7 @@ type ChatRequest =
 type ExchangeHistoryItem = {
   kind: "exchange";
   id: number;
-  timestamp: string;
+  createdAt: string;
   title: string;
   lines: string[];
 };
@@ -92,7 +92,7 @@ type ExchangeHistoryItem = {
 type StockHistoryItem = {
   kind: "stock_buy" | "stock_sell";
   id: number;
-  timestamp: string;
+  createdAt: string;
   title: string;
   lines: string[];
 };
@@ -497,7 +497,7 @@ function convertExchangeHistoryItem(
   return {
     kind: "exchange",
     id,
-    timestamp: createdAt ?? buildExchangeSortTimestamp(date),
+    createdAt: createdAt ?? buildExchangeSortTimestamp(date),
     title: "แลกเงิน",
     lines: buildExchangeSummary({
       date,
@@ -549,7 +549,7 @@ function convertStockHistoryItem(
   return {
     kind: type,
     id,
-    timestamp: createdAt ?? normalizeDateTime(executedAt),
+    createdAt: createdAt ?? normalizeDateTime(executedAt),
     title: type === "stock_buy" ? "ซื้อหุ้น" : "ขายหุ้น",
     lines: buildStockSummary(type, {
       executedAt,
@@ -590,7 +590,7 @@ async function loadChatHistory(): Promise<ChatHistoryItem[]> {
   const stockItems = stockData.map(convertStockHistoryItem);
 
   return [...exchangeItems, ...stockItems].sort((left, right) => {
-    const timeOrder = left.timestamp.localeCompare(right.timestamp);
+    const timeOrder = left.createdAt.localeCompare(right.createdAt);
     if (timeOrder !== 0) {
       return timeOrder;
     }

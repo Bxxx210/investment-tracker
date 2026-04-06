@@ -34,14 +34,14 @@ type ChatHistoryItem =
   | {
       kind: "exchange";
       id: number;
-      timestamp: string;
+      createdAt: string;
       title: string;
       lines: string[];
     }
   | {
       kind: "stock_buy" | "stock_sell";
       id: number;
-      timestamp: string;
+      createdAt: string;
       title: string;
       lines: string[];
     };
@@ -157,13 +157,37 @@ function quickReplyExamples() {
 
 function sortHistoryItems(items: ChatHistoryItem[]) {
   return [...items].sort((left, right) => {
-    const timeOrder = left.timestamp.localeCompare(right.timestamp);
+    const timeOrder = left.createdAt.localeCompare(right.createdAt);
     if (timeOrder !== 0) {
       return timeOrder;
     }
 
     return left.id - right.id;
   });
+}
+
+function formatThaiDateTime(value: string) {
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  const datePart = new Intl.DateTimeFormat("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Bangkok",
+  }).format(parsed);
+
+  const timePart = new Intl.DateTimeFormat("th-TH", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Bangkok",
+  }).format(parsed);
+
+  return `${datePart} ${timePart}`;
 }
 
 async function loadHistoryItems() {
@@ -445,6 +469,9 @@ export default function ChatHubClient() {
                     </div>
                     <div className="whitespace-pre-line text-sm leading-7 text-emerald-50/90">
                       {buildHistoryText(item)}
+                    </div>
+                    <div className="mt-2 text-xs text-emerald-100/60">
+                      {formatThaiDateTime(item.createdAt)}
                     </div>
                   </div>
                 </div>

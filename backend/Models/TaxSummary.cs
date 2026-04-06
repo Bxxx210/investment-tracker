@@ -1,10 +1,14 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models;
 
 public class TaxSummary
 {
     public int Id { get; set; }
+
+    [NotMapped]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     [Range(2000, 9999)]
     public int Year { get; set; }
