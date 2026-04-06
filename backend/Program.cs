@@ -1,6 +1,12 @@
+using backend.Data;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // เพิ่มบริการให้กับ container
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? "Data Source=investment.db"));
 
 builder.Services.AddControllers();
 builder.Services.AddSingleton<backend.Services.IExchangeTransactionService, backend.Services.ExchangeTransactionService>();
