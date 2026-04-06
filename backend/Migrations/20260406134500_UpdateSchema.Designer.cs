@@ -76,7 +76,7 @@ namespace backend.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("PriceThb")
+                    b.Property<decimal?>("PriceThb")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("PriceUsd")

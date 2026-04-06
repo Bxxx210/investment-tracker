@@ -167,6 +167,7 @@ async function loadHistoryItems() {
 export default function ChatHubClient() {
   const createIdRef = useRef(createConversationIdFactory());
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState("");
   const [conversation, setConversation] = useState<ConversationMessage[]>(
     () => initialConversation(() => createIdRef.current())
@@ -196,9 +197,10 @@ export default function ChatHubClient() {
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      }
+      bottomRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
     });
   };
 
@@ -521,6 +523,7 @@ export default function ChatHubClient() {
                 </div>
               </div>
             ) : null}
+            <div ref={bottomRef} aria-hidden="true" />
           </div>
         </div>
       </section>

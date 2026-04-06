@@ -40,8 +40,8 @@ namespace backend.Migrations
                     Type = table.Column<int>(type: "INTEGER", nullable: false),
                     Quantity = table.Column<decimal>(type: "TEXT", nullable: false),
                     PriceForeign = table.Column<decimal>(type: "TEXT", nullable: false),
-                    RateAtTrade = table.Column<decimal>(type: "TEXT", nullable: false),
-                    PriceThb = table.Column<decimal>(type: "TEXT", nullable: false),
+                    RateAtTrade = table.Column<decimal>(type: "TEXT", nullable: true),
+                    PriceThb = table.Column<decimal>(type: "TEXT", nullable: true),
                     FeeForeign = table.Column<decimal>(type: "TEXT", nullable: false),
                     FeeThb = table.Column<decimal>(type: "TEXT", nullable: false),
                     Note = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true)

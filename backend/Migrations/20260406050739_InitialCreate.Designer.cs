@@ -76,13 +76,13 @@ namespace backend.Migrations
                     b.Property<decimal>("PriceForeign")
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("PriceThb")
+                    b.Property<decimal?>("PriceThb")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("Quantity")
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("RateAtTrade")
+                    b.Property<decimal?>("RateAtTrade")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Ticker")
