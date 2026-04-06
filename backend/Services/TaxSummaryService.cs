@@ -6,11 +6,11 @@ namespace backend.Services;
 
 public interface ITaxSummaryService
 {
-    IEnumerable<TaxSummary> GetAll();
-    TaxSummary? GetById(int id);
-    TaxSummary Create(TaxSummary summary);
-    TaxSummary? Update(int id, TaxSummary summary);
-    bool Delete(int id);
+    Task<IEnumerable<TaxSummary>> GetAllAsync();
+    Task<TaxSummary?> GetByIdAsync(int id);
+    Task<TaxSummary> CreateAsync(TaxSummary summary);
+    Task<TaxSummary?> UpdateAsync(int id, TaxSummary summary);
+    Task<bool> DeleteAsync(int id);
 }
 
 public class TaxSummaryService : ITaxSummaryService
@@ -22,23 +22,23 @@ public class TaxSummaryService : ITaxSummaryService
         _dbContext = dbContext;
     }
 
-    public IEnumerable<TaxSummary> GetAll()
+    public async Task<IEnumerable<TaxSummary>> GetAllAsync()
     {
-        return _dbContext.TaxSummaries
+        return await _dbContext.TaxSummaries
             .AsNoTracking()
             .OrderByDescending(x => x.Year)
             .ThenBy(x => x.Id)
-            .ToArray();
+            .ToListAsync();
     }
 
-    public TaxSummary? GetById(int id)
+    public async Task<TaxSummary?> GetByIdAsync(int id)
     {
-        return _dbContext.TaxSummaries
+        return await _dbContext.TaxSummaries
             .AsNoTracking()
-            .FirstOrDefault(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.Id == id);
     }
 
-    public TaxSummary Create(TaxSummary summary)
+    public async Task<TaxSummary> CreateAsync(TaxSummary summary)
     {
         Validate(summary);
 
@@ -54,15 +54,15 @@ public class TaxSummaryService : ITaxSummaryService
         };
 
         _dbContext.TaxSummaries.Add(created);
-        _dbContext.SaveChanges();
+        await _dbContext.SaveChangesAsync();
         return created;
     }
 
-    public TaxSummary? Update(int id, TaxSummary summary)
+    public async Task<TaxSummary?> UpdateAsync(int id, TaxSummary summary)
     {
         Validate(summary);
 
-        var existing = _dbContext.TaxSummaries.FirstOrDefault(x => x.Id == id);
+        var existing = await _dbContext.TaxSummaries.FirstOrDefaultAsync(x => x.Id == id);
         if (existing is null)
         {
             return null;
@@ -76,20 +76,20 @@ public class TaxSummaryService : ITaxSummaryService
         existing.TaxRate = summary.TaxRate;
         existing.TaxAmount = summary.TaxAmount;
 
-        _dbContext.SaveChanges();
+        await _dbContext.SaveChangesAsync();
         return existing;
     }
 
-    public bool Delete(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
-        var existing = _dbContext.TaxSummaries.FirstOrDefault(x => x.Id == id);
+        var existing = await _dbContext.TaxSummaries.FirstOrDefaultAsync(x => x.Id == id);
         if (existing is null)
         {
             return false;
         }
 
         _dbContext.TaxSummaries.Remove(existing);
-        _dbContext.SaveChanges();
+        await _dbContext.SaveChangesAsync();
         return true;
     }
 

@@ -16,11 +16,11 @@ public class TaxSummariesController : ControllerBase
     }
 
     [HttpGet]
-    public ActionResult<IEnumerable<TaxSummary>> GetAll()
+    public async Task<ActionResult<IEnumerable<TaxSummary>>> GetAll()
     {
         try
         {
-            return Ok(_service.GetAll());
+            return Ok(await _service.GetAllAsync());
         }
         catch (Exception ex)
         {
@@ -29,11 +29,11 @@ public class TaxSummariesController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    public ActionResult<TaxSummary> GetById(int id)
+    public async Task<ActionResult<TaxSummary>> GetById(int id)
     {
         try
         {
-            var summary = _service.GetById(id);
+            var summary = await _service.GetByIdAsync(id);
             return summary is null ? NotFound(new { message = "ไม่พบสรุปภาษี" }) : Ok(summary);
         }
         catch (Exception ex)
@@ -43,7 +43,7 @@ public class TaxSummariesController : ControllerBase
     }
 
     [HttpPost]
-    public ActionResult<TaxSummary> Create([FromBody] TaxSummary summary)
+    public async Task<ActionResult<TaxSummary>> Create([FromBody] TaxSummary summary)
     {
         if (!ModelState.IsValid)
         {
@@ -52,7 +52,7 @@ public class TaxSummariesController : ControllerBase
 
         try
         {
-            var created = _service.Create(summary);
+            var created = await _service.CreateAsync(summary);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
         catch (Exception ex)
@@ -62,7 +62,7 @@ public class TaxSummariesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public ActionResult<TaxSummary> Update(int id, [FromBody] TaxSummary summary)
+    public async Task<ActionResult<TaxSummary>> Update(int id, [FromBody] TaxSummary summary)
     {
         if (!ModelState.IsValid)
         {
@@ -71,7 +71,7 @@ public class TaxSummariesController : ControllerBase
 
         try
         {
-            var updated = _service.Update(id, summary);
+            var updated = await _service.UpdateAsync(id, summary);
             return updated is null ? NotFound(new { message = "ไม่พบสรุปภาษี" }) : Ok(updated);
         }
         catch (Exception ex)
@@ -81,11 +81,11 @@ public class TaxSummariesController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    public IActionResult Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
         try
         {
-            return _service.Delete(id) ? NoContent() : NotFound(new { message = "ไม่พบสรุปภาษี" });
+            return await _service.DeleteAsync(id) ? NoContent() : NotFound(new { message = "ไม่พบสรุปภาษี" });
         }
         catch (Exception ex)
         {

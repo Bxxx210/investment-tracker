@@ -6,11 +6,11 @@ namespace backend.Services;
 
 public interface IStockTransactionService
 {
-    IEnumerable<StockTransaction> GetAll();
-    StockTransaction? GetById(int id);
-    StockTransaction Create(StockTransaction transaction);
-    StockTransaction? Update(int id, StockTransaction transaction);
-    bool Delete(int id);
+    Task<IEnumerable<StockTransaction>> GetAllAsync();
+    Task<StockTransaction?> GetByIdAsync(int id);
+    Task<StockTransaction> CreateAsync(StockTransaction transaction);
+    Task<StockTransaction?> UpdateAsync(int id, StockTransaction transaction);
+    Task<bool> DeleteAsync(int id);
 }
 
 public class StockTransactionService : IStockTransactionService
@@ -22,23 +22,23 @@ public class StockTransactionService : IStockTransactionService
         _dbContext = dbContext;
     }
 
-    public IEnumerable<StockTransaction> GetAll()
+    public async Task<IEnumerable<StockTransaction>> GetAllAsync()
     {
-        return _dbContext.StockTransactions
+        return await _dbContext.StockTransactions
             .AsNoTracking()
             .OrderBy(x => x.Date)
             .ThenBy(x => x.Id)
-            .ToArray();
+            .ToListAsync();
     }
 
-    public StockTransaction? GetById(int id)
+    public async Task<StockTransaction?> GetByIdAsync(int id)
     {
-        return _dbContext.StockTransactions
+        return await _dbContext.StockTransactions
             .AsNoTracking()
-            .FirstOrDefault(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.Id == id);
     }
 
-    public StockTransaction Create(StockTransaction transaction)
+    public async Task<StockTransaction> CreateAsync(StockTransaction transaction)
     {
         Validate(transaction);
 
@@ -57,15 +57,15 @@ public class StockTransactionService : IStockTransactionService
         };
 
         _dbContext.StockTransactions.Add(created);
-        _dbContext.SaveChanges();
+        await _dbContext.SaveChangesAsync();
         return created;
     }
 
-    public StockTransaction? Update(int id, StockTransaction transaction)
+    public async Task<StockTransaction?> UpdateAsync(int id, StockTransaction transaction)
     {
         Validate(transaction);
 
-        var existing = _dbContext.StockTransactions.FirstOrDefault(x => x.Id == id);
+        var existing = await _dbContext.StockTransactions.FirstOrDefaultAsync(x => x.Id == id);
         if (existing is null)
         {
             return null;
@@ -82,20 +82,20 @@ public class StockTransactionService : IStockTransactionService
         existing.FeeThb = transaction.FeeThb;
         existing.Note = transaction.Note;
 
-        _dbContext.SaveChanges();
+        await _dbContext.SaveChangesAsync();
         return existing;
     }
 
-    public bool Delete(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
-        var existing = _dbContext.StockTransactions.FirstOrDefault(x => x.Id == id);
+        var existing = await _dbContext.StockTransactions.FirstOrDefaultAsync(x => x.Id == id);
         if (existing is null)
         {
             return false;
         }
 
         _dbContext.StockTransactions.Remove(existing);
-        _dbContext.SaveChanges();
+        await _dbContext.SaveChangesAsync();
         return true;
     }
 

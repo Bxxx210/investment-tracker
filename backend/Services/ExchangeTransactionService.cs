@@ -6,11 +6,11 @@ namespace backend.Services;
 
 public interface IExchangeTransactionService
 {
-    IEnumerable<ExchangeTransaction> GetAll();
-    ExchangeTransaction? GetById(int id);
-    ExchangeTransaction Create(ExchangeTransaction transaction);
-    ExchangeTransaction? Update(int id, ExchangeTransaction transaction);
-    bool Delete(int id);
+    Task<IEnumerable<ExchangeTransaction>> GetAllAsync();
+    Task<ExchangeTransaction?> GetByIdAsync(int id);
+    Task<ExchangeTransaction> CreateAsync(ExchangeTransaction transaction);
+    Task<ExchangeTransaction?> UpdateAsync(int id, ExchangeTransaction transaction);
+    Task<bool> DeleteAsync(int id);
 }
 
 public class ExchangeTransactionService : IExchangeTransactionService
@@ -22,23 +22,23 @@ public class ExchangeTransactionService : IExchangeTransactionService
         _dbContext = dbContext;
     }
 
-    public IEnumerable<ExchangeTransaction> GetAll()
+    public async Task<IEnumerable<ExchangeTransaction>> GetAllAsync()
     {
-        return _dbContext.ExchangeTransactions
+        return await _dbContext.ExchangeTransactions
             .AsNoTracking()
             .OrderBy(x => x.Date)
             .ThenBy(x => x.Id)
-            .ToArray();
+            .ToListAsync();
     }
 
-    public ExchangeTransaction? GetById(int id)
+    public async Task<ExchangeTransaction?> GetByIdAsync(int id)
     {
-        return _dbContext.ExchangeTransactions
+        return await _dbContext.ExchangeTransactions
             .AsNoTracking()
-            .FirstOrDefault(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.Id == id);
     }
 
-    public ExchangeTransaction Create(ExchangeTransaction transaction)
+    public async Task<ExchangeTransaction> CreateAsync(ExchangeTransaction transaction)
     {
         Validate(transaction);
 
@@ -53,15 +53,15 @@ public class ExchangeTransactionService : IExchangeTransactionService
         };
 
         _dbContext.ExchangeTransactions.Add(created);
-        _dbContext.SaveChanges();
+        await _dbContext.SaveChangesAsync();
         return created;
     }
 
-    public ExchangeTransaction? Update(int id, ExchangeTransaction transaction)
+    public async Task<ExchangeTransaction?> UpdateAsync(int id, ExchangeTransaction transaction)
     {
         Validate(transaction);
 
-        var existing = _dbContext.ExchangeTransactions.FirstOrDefault(x => x.Id == id);
+        var existing = await _dbContext.ExchangeTransactions.FirstOrDefaultAsync(x => x.Id == id);
         if (existing is null)
         {
             return null;
@@ -74,20 +74,20 @@ public class ExchangeTransactionService : IExchangeTransactionService
         existing.Rate = transaction.Rate;
         existing.Note = transaction.Note;
 
-        _dbContext.SaveChanges();
+        await _dbContext.SaveChangesAsync();
         return existing;
     }
 
-    public bool Delete(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
-        var existing = _dbContext.ExchangeTransactions.FirstOrDefault(x => x.Id == id);
+        var existing = await _dbContext.ExchangeTransactions.FirstOrDefaultAsync(x => x.Id == id);
         if (existing is null)
         {
             return false;
         }
 
         _dbContext.ExchangeTransactions.Remove(existing);
-        _dbContext.SaveChanges();
+        await _dbContext.SaveChangesAsync();
         return true;
     }
 

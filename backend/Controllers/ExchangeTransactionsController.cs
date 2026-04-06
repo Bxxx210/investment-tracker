@@ -16,11 +16,11 @@ public class ExchangeTransactionsController : ControllerBase
     }
 
     [HttpGet]
-    public ActionResult<IEnumerable<ExchangeTransaction>> GetAll()
+    public async Task<ActionResult<IEnumerable<ExchangeTransaction>>> GetAll()
     {
         try
         {
-            return Ok(_service.GetAll());
+            return Ok(await _service.GetAllAsync());
         }
         catch (Exception ex)
         {
@@ -29,11 +29,11 @@ public class ExchangeTransactionsController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    public ActionResult<ExchangeTransaction> GetById(int id)
+    public async Task<ActionResult<ExchangeTransaction>> GetById(int id)
     {
         try
         {
-            var transaction = _service.GetById(id);
+            var transaction = await _service.GetByIdAsync(id);
             return transaction is null ? NotFound(new { message = "ไม่พบรายการแลกเปลี่ยน" }) : Ok(transaction);
         }
         catch (Exception ex)
@@ -43,7 +43,7 @@ public class ExchangeTransactionsController : ControllerBase
     }
 
     [HttpPost]
-    public ActionResult<ExchangeTransaction> Create([FromBody] ExchangeTransaction transaction)
+    public async Task<ActionResult<ExchangeTransaction>> Create([FromBody] ExchangeTransaction transaction)
     {
         if (!ModelState.IsValid)
         {
@@ -52,7 +52,7 @@ public class ExchangeTransactionsController : ControllerBase
 
         try
         {
-            var created = _service.Create(transaction);
+            var created = await _service.CreateAsync(transaction);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
         catch (Exception ex)
@@ -62,7 +62,7 @@ public class ExchangeTransactionsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public ActionResult<ExchangeTransaction> Update(int id, [FromBody] ExchangeTransaction transaction)
+    public async Task<ActionResult<ExchangeTransaction>> Update(int id, [FromBody] ExchangeTransaction transaction)
     {
         if (!ModelState.IsValid)
         {
@@ -71,7 +71,7 @@ public class ExchangeTransactionsController : ControllerBase
 
         try
         {
-            var updated = _service.Update(id, transaction);
+            var updated = await _service.UpdateAsync(id, transaction);
             return updated is null ? NotFound(new { message = "ไม่พบรายการแลกเปลี่ยน" }) : Ok(updated);
         }
         catch (Exception ex)
@@ -81,11 +81,11 @@ public class ExchangeTransactionsController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    public IActionResult Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
         try
         {
-            return _service.Delete(id) ? NoContent() : NotFound(new { message = "ไม่พบรายการแลกเปลี่ยน" });
+            return await _service.DeleteAsync(id) ? NoContent() : NotFound(new { message = "ไม่พบรายการแลกเปลี่ยน" });
         }
         catch (Exception ex)
         {
