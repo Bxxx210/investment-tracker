@@ -18,12 +18,24 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Investment Tracker",
   description: "Web app สำหรับบันทึกการลงทุนและสรุปภาษี",
+  applicationName: "Investment Tracker",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Investment Tracker",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#020617",
 };
 
 export default function RootLayout({
