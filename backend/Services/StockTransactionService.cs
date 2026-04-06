@@ -112,7 +112,7 @@ public class StockTransactionService : IStockTransactionService
     private static StockTransaction NormalizeStockTransaction(StockTransaction transaction)
     {
         var executedAt = transaction.ExecutedAt == default
-            ? DateTime.Now
+            ? DateTime.UtcNow
             : transaction.ExecutedAt;
 
         var totalCostUsd = transaction.TotalCostUsd;

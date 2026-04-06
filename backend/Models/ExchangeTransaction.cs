@@ -9,6 +9,10 @@ public class ExchangeTransaction
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     [Required]
+    [EnumDataType(typeof(global::backend.Models.ExchangeType))]
+    public ExchangeType ExchangeType { get; set; } = ExchangeType.BuyUsd;
+
+    [Required]
     public DateOnly Date { get; set; }
 
     [Range(typeof(decimal), "0.0000001", "79228162514264337593543950335")]

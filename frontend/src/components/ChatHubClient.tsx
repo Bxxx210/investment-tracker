@@ -7,6 +7,7 @@ type ChatIntent = "exchange" | "stock_buy" | "stock_sell" | "unknown";
 type ChatAnalysisData = {
   date?: string | null;
   executedAt?: string | null;
+  exchangeType?: "buy_usd" | "sell_usd" | null;
   thbAmount?: number | null;
   foreignAmount?: number | null;
   currency?: string | null;
@@ -35,6 +36,7 @@ type ChatHistoryItem =
       kind: "exchange";
       id: number;
       createdAt: string;
+      exchangeType: "buy_usd" | "sell_usd";
       title: string;
       lines: string[];
     }
@@ -123,6 +125,14 @@ function buildHistoryText(item: ChatHistoryItem) {
   return item.lines.join("\n");
 }
 
+function parseUtcDate(value: string) {
+  const trimmed = value.trim();
+  const hasTimeZone = /([zZ]|[+-]\d{2}:\d{2})$/.test(trimmed);
+  const parsed = new Date(hasTimeZone ? trimmed : `${trimmed}Z`);
+
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function initialConversation(createId: () => number): ConversationMessage[] {
   return [
     {
@@ -138,26 +148,15 @@ function buildPreviewSummary(analysis: ChatAnalysis) {
   return analysis.summary;
 }
 
-function intentLabel(intent: ChatIntent) {
-  switch (intent) {
-    case "exchange":
-      return "แลกเงิน";
-    case "stock_buy":
-      return "ซื้อหุ้น";
-    case "stock_sell":
-      return "ขายหุ้น";
-    default:
-      return "ยังไม่แน่ใจ";
-  }
-}
-
 function quickReplyExamples() {
   return starterPhrases;
 }
 
 function sortHistoryItems(items: ChatHistoryItem[]) {
   return [...items].sort((left, right) => {
-    const timeOrder = left.createdAt.localeCompare(right.createdAt);
+    const leftTime = parseUtcDate(left.createdAt)?.getTime() ?? 0;
+    const rightTime = parseUtcDate(right.createdAt)?.getTime() ?? 0;
+    const timeOrder = leftTime - rightTime;
     if (timeOrder !== 0) {
       return timeOrder;
     }
@@ -167,27 +166,22 @@ function sortHistoryItems(items: ChatHistoryItem[]) {
 }
 
 function formatThaiDateTime(value: string) {
-  const parsed = new Date(value);
+  const parsed = parseUtcDate(value);
 
-  if (Number.isNaN(parsed.getTime())) {
+  if (!parsed) {
     return value;
   }
 
-  const datePart = new Intl.DateTimeFormat("th-TH", {
+  return parsed.toLocaleString("th-TH", {
+    calendar: "gregory",
+    timeZone: "Asia/Bangkok",
     day: "numeric",
     month: "short",
     year: "numeric",
-    timeZone: "Asia/Bangkok",
-  }).format(parsed);
-
-  const timePart = new Intl.DateTimeFormat("th-TH", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: "Asia/Bangkok",
-  }).format(parsed);
-
-  return `${datePart} ${timePart}`;
+  });
 }
 
 async function loadHistoryItems() {
@@ -205,8 +199,10 @@ export default function ChatHubClient() {
   const createIdRef = useRef(createConversationIdFactory());
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const historyRef = useRef<HTMLDivElement | null>(null);
   const hasMountedRef = useRef(false);
   const previousConversationLengthRef = useRef(0);
+  const shouldScrollHistoryAfterSaveRef = useRef(false);
   const [draft, setDraft] = useState("");
   const [conversation, setConversation] = useState<ConversationMessage[]>(
     () => initialConversation(() => createIdRef.current())
@@ -243,6 +239,15 @@ export default function ChatHubClient() {
     });
   };
 
+  const scrollHistoryIntoView = () => {
+    requestAnimationFrame(() => {
+      historyRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  };
+
   useEffect(() => {
     if (!hasMountedRef.current) {
       hasMountedRef.current = true;
@@ -251,7 +256,12 @@ export default function ChatHubClient() {
     }
 
     if (conversation.length > previousConversationLengthRef.current) {
-      scrollToBottom();
+      if (shouldScrollHistoryAfterSaveRef.current) {
+        shouldScrollHistoryAfterSaveRef.current = false;
+        scrollHistoryIntoView();
+      } else {
+        scrollToBottom();
+      }
     }
 
     previousConversationLengthRef.current = conversation.length;
@@ -381,6 +391,7 @@ export default function ChatHubClient() {
       const data = (await response.json()) as ChatResponse;
       setPendingAnalysis(null);
       setHistory(await loadHistoryItems());
+      shouldScrollHistoryAfterSaveRef.current = true;
       pushBotText(data.message ?? "บันทึกแล้วครับ!", "success");
     } catch (error) {
       updatePreviewStatus("pending");
@@ -442,7 +453,7 @@ export default function ChatHubClient() {
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center gap-3 px-2">
+            <div ref={historyRef} className="flex items-center gap-3 px-2">
               <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-slate-400">
                 ประวัติที่บันทึกแล้ว
               </span>
@@ -463,7 +474,7 @@ export default function ChatHubClient() {
                   <div className="max-w-[90%] rounded-[1.6rem] rounded-bl-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm leading-7 text-emerald-50 shadow-lg shadow-emerald-950/10 sm:max-w-[75%] sm:text-base">
                     <div className="mb-2 flex items-center gap-2">
                       <span className="rounded-full bg-emerald-400/20 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-emerald-100">
-                        {intentLabel(item.kind)}
+                        {item.title}
                       </span>
                       <span className="text-xs text-emerald-100/70">#{item.id}</span>
                     </div>

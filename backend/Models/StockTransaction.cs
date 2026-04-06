@@ -14,7 +14,7 @@ public class StockTransaction
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public DateTime ExecutedAt { get; set; }
+    public DateTime ExecutedAt { get; set; } = DateTime.UtcNow;
 
     [Required]
     [StringLength(20)]

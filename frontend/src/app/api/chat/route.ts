@@ -5,6 +5,7 @@ type ChatIntent = "exchange" | "stock_buy" | "stock_sell" | "unknown";
 type ChatData = {
   date?: string | null;
   executedAt?: string | null;
+  exchangeType?: "buy_usd" | "sell_usd" | null;
   thbAmount?: number | null;
   foreignAmount?: number | null;
   currency?: string | null;
@@ -29,6 +30,7 @@ type ChatAnalysis = {
 
 type NormalizedExchangeData = {
   date: string;
+  exchangeType: "buy_usd" | "sell_usd";
   thbAmount: number;
   foreignAmount: number;
   currency: string;
@@ -40,7 +42,14 @@ type NormalizedExchangeData = {
 
 type ExchangeSummaryInput = Pick<
   NormalizedExchangeData,
-  "date" | "thbAmount" | "foreignAmount" | "currency" | "midRate" | "actualRate" | "spread"
+  | "date"
+  | "exchangeType"
+  | "thbAmount"
+  | "foreignAmount"
+  | "currency"
+  | "midRate"
+  | "actualRate"
+  | "spread"
 >;
 
 type NormalizedStockData = {
@@ -85,6 +94,7 @@ type ExchangeHistoryItem = {
   kind: "exchange";
   id: number;
   createdAt: string;
+  exchangeType: "buy_usd" | "sell_usd";
   title: string;
   lines: string[];
 };
@@ -116,6 +126,10 @@ const analysisSchema = {
       properties: {
         date: { type: ["string", "null"] },
         executedAt: { type: ["string", "null"] },
+        exchangeType: {
+          type: ["string", "null"],
+          enum: ["buy_usd", "sell_usd", null],
+        },
         thbAmount: { type: ["number", "null"] },
         foreignAmount: { type: ["number", "null"] },
         currency: { type: ["string", "null"] },
@@ -149,11 +163,8 @@ function getBangkokToday() {
   }).format(new Date());
 }
 
-function getBangkokNowIso() {
-  const now = new Date();
-  const offsetHours = 7;
-  const local = new Date(now.getTime() + offsetHours * 60 * 60 * 1000);
-  return local.toISOString().slice(0, 19);
+function getUtcNowIso() {
+  return new Date().toISOString();
 }
 
 function normalizeDate(value: string | null | undefined) {
@@ -175,21 +186,21 @@ function normalizeDate(value: string | null | undefined) {
 
 function normalizeDateTime(value: string | null | undefined) {
   if (!value) {
-    return getBangkokNowIso();
+    return getUtcNowIso();
   }
 
   const trimmed = value.trim();
   const asDate = new Date(trimmed);
 
   if (Number.isNaN(asDate.getTime())) {
-    return trimmed.slice(0, 19) || getBangkokNowIso();
+    return trimmed || getUtcNowIso();
   }
 
-  return asDate.toISOString().slice(0, 19);
+  return asDate.toISOString();
 }
 
 function buildExchangeSortTimestamp(date: string) {
-  return `${date}T12:00:00.000`;
+  return `${date}T12:00:00.000Z`;
 }
 
 function normalizeCurrency(value: string | null | undefined) {
@@ -205,7 +216,9 @@ function parseBackendTimestamp(value: unknown) {
     return null;
   }
 
-  const normalizedValue = value.trim().replace(" ", "T");
+  const trimmed = value.trim().replace(" ", "T");
+  const hasTimeZone = /([zZ]|[+-]\d{2}:\d{2})$/.test(trimmed);
+  const normalizedValue = hasTimeZone ? trimmed : `${trimmed}Z`;
   const parsed = new Date(normalizedValue);
   return Number.isNaN(parsed.getTime()) ? value.trim() : parsed.toISOString();
 }
@@ -218,8 +231,14 @@ function extractGeminiText(response: GeminiGenerateContentResponse) {
 }
 
 function buildExchangeSummary(data: ExchangeSummaryInput) {
+  const exchangeTypeLabel =
+    data.exchangeType === "sell_usd"
+      ? "💱 แลกกลับ (USD→THB)"
+      : "💱 แลกเงิน (THB→USD)";
+
   return [
     "ยืนยันบันทึกนี้ไหมครับ?",
+    exchangeTypeLabel,
     `💰 จำนวนบาท: ${data.thbAmount.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     `💵 ได้รับ: ${data.foreignAmount.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${data.currency}`,
     `📊 อัตรา: ${data.actualRate.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`,
@@ -269,16 +288,19 @@ function buildPrompt(text: string) {
     "- intent ต้องเป็น exchange, stock_buy, stock_sell หรือ unknown",
     '- return JSON object ตามรูปแบบ {"intent":"...","data":{...}} เท่านั้น',
     "- ถ้าเป็นการแลกเงิน ให้ใส่ intent = exchange",
+    "- ถ้า intent = exchange ต้องมี exchangeType เป็น buy_usd หรือ sell_usd",
+    "- buy_usd ใช้เมื่อข้อความหมายถึงแลก THB -> USD หรือเพื่อซื้อหุ้น",
+    "- sell_usd ใช้เมื่อข้อความหมายถึงแลก USD -> THB หรือแลกกลับ",
     "- ถ้าเป็นการซื้อหุ้น ให้ใส่ intent = stock_buy",
     "- ถ้าเป็นการขายหุ้น ให้ใส่ intent = stock_sell",
     "- ถ้าไม่แน่ใจ ให้ intent = unknown",
     "- data ต้องเก็บเฉพาะฟิลด์ที่เกี่ยวข้อง",
-    "- exchange ต้องมี date, thbAmount, foreignAmount, currency, midRate, actualRate, spread, note",
+    "- exchange ต้องมี date, exchangeType, thbAmount, foreignAmount, currency, midRate, actualRate, spread, note",
     "- ถ้าเป็นข้อความแลกเงินที่มีแค่ฝั่งเดียว เช่น foreignAmount หรือ thbAmount ให้คืนข้อมูลเท่าที่รู้ได้ แล้วปล่อยอีกฝั่งเป็น null",
     "- ถ้ามี actualRate และมี amount ฝั่งเดียว ให้ช่วยคำนวณอีกฝั่งถ้าเป็นไปได้",
     "- stock ต้องมี executedAt, ticker, quantity, priceUsd, feeUsd, vatUsd, totalCostUsd, rateAtTrade, priceThb, note",
     "- date ใช้รูปแบบ yyyy-MM-dd",
-    "- executedAt ใช้รูปแบบ yyyy-MM-ddTHH:mm:ss",
+    "- executedAt ใช้รูปแบบ yyyy-MM-ddTHH:mm:ssZ",
     "- currency ค่าเริ่มต้นเป็น USD",
     "- feeUsd และ vatUsd ค่าเริ่มต้นเป็น 0 ถ้าไม่ระบุ",
     "- spread = actualRate - midRate ถ้า midRate มี",
@@ -341,6 +363,12 @@ async function analyzeWithGemini(text: string) {
 
 function normalizeExchangeAnalysis(analysis: ChatAnalysis) {
   const date = normalizeDate(analysis.data.date);
+  const exchangeType =
+    analysis.data.exchangeType === "sell_usd"
+      ? "sell_usd"
+      : analysis.data.exchangeType === "buy_usd"
+        ? "buy_usd"
+        : null;
   const thbAmount = normalizeNumber(analysis.data.thbAmount);
   const foreignAmount = normalizeNumber(analysis.data.foreignAmount);
   const actualRate = normalizeNumber(analysis.data.actualRate);
@@ -363,6 +391,7 @@ function normalizeExchangeAnalysis(analysis: ChatAnalysis) {
 
   if (
     actualRate === null ||
+    exchangeType === null ||
     resolvedThbAmount === null ||
     resolvedForeignAmount === null ||
     resolvedThbAmount <= 0 ||
@@ -376,6 +405,7 @@ function normalizeExchangeAnalysis(analysis: ChatAnalysis) {
     intent: "exchange" as const,
     data: {
       date,
+      exchangeType,
       thbAmount: resolvedThbAmount,
       foreignAmount: resolvedForeignAmount,
       currency,
@@ -386,6 +416,7 @@ function normalizeExchangeAnalysis(analysis: ChatAnalysis) {
     } satisfies NormalizedExchangeData,
     summary: buildExchangeSummary({
       date,
+      exchangeType,
       thbAmount: resolvedThbAmount,
       foreignAmount: resolvedForeignAmount,
       currency,
@@ -493,14 +524,27 @@ function convertExchangeHistoryItem(
     transaction.spread === null || transaction.spread === undefined
       ? null
       : Number(transaction.spread);
+  const exchangeTypeValue = String(
+    transaction.exchangeType ??
+      transaction.ExchangeType ??
+      transaction.exchange_type ??
+      "buy_usd"
+  ).toLowerCase();
+  const exchangeType =
+    exchangeTypeValue === "sell_usd" ? "sell_usd" : "buy_usd";
 
   return {
     kind: "exchange",
     id,
     createdAt: createdAt ?? buildExchangeSortTimestamp(date),
-    title: "แลกเงิน",
+    exchangeType,
+    title:
+      exchangeType === "sell_usd"
+        ? "💱 แลกกลับ (USD→THB)"
+        : "💱 แลกเงิน (THB→USD)",
     lines: buildExchangeSummary({
       date,
+      exchangeType,
       thbAmount,
       foreignAmount,
       currency,
@@ -609,6 +653,7 @@ async function saveExchange(
     },
     body: JSON.stringify({
       date: data.date,
+      exchangeType: data.exchangeType,
       thbAmount: data.thbAmount,
       foreignAmount: data.foreignAmount,
       currency: data.currency,

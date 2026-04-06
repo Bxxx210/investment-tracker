@@ -1,10 +1,23 @@
 using backend.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace backend.Data;
 
 public class ApplicationDbContext : DbContext
 {
+    private static readonly ValueConverter<DateTime, DateTime> UtcDateTimeConverter =
+        new(
+            value => value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime(),
+            value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
+
+    private static readonly ValueConverter<ExchangeType, string> ExchangeTypeConverter =
+        new(
+            value => value == ExchangeType.SellUsd ? "sell_usd" : "buy_usd",
+            value => value.Trim().ToLowerInvariant() == "sell_usd"
+                ? ExchangeType.SellUsd
+                : ExchangeType.BuyUsd);
+
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {
@@ -24,7 +37,12 @@ public class ApplicationDbContext : DbContext
             entity.ToTable("exchange_transactions");
             entity.Property(x => x.CreatedAt)
                 .HasColumnName("created_at")
+                .HasConversion(UtcDateTimeConverter)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(x => x.ExchangeType)
+                .HasColumnName("exchange_type")
+                .HasConversion(ExchangeTypeConverter)
+                .HasDefaultValue("buy_usd");
             entity.Property(x => x.Date).HasColumnName("date");
             entity.Property(x => x.ThbAmount).HasColumnName("thb_amount");
             entity.Property(x => x.ForeignAmount).HasColumnName("foreign_amount");
@@ -40,8 +58,11 @@ public class ApplicationDbContext : DbContext
             entity.ToTable("stock_transactions");
             entity.Property(x => x.CreatedAt)
                 .HasColumnName("created_at")
+                .HasConversion(UtcDateTimeConverter)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.Property(x => x.ExecutedAt).HasColumnName("executed_at");
+            entity.Property(x => x.ExecutedAt)
+                .HasColumnName("executed_at")
+                .HasConversion(UtcDateTimeConverter);
             entity.Property(x => x.Ticker).HasColumnName("ticker");
             entity.Property(x => x.Type).HasColumnName("type").HasConversion<int>();
             entity.Property(x => x.Quantity).HasColumnName("quantity");
@@ -59,38 +80,55 @@ public class ApplicationDbContext : DbContext
             entity.ToTable("tax_summary");
             entity.Property(x => x.CreatedAt)
                 .HasColumnName("created_at")
+                .HasConversion(UtcDateTimeConverter)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        SetCreatedAtValues();
+        NormalizeDateTimes();
         return base.SaveChangesAsync(cancellationToken);
     }
 
     public override int SaveChanges()
     {
-        SetCreatedAtValues();
+        NormalizeDateTimes();
         return base.SaveChanges();
     }
 
-    private void SetCreatedAtValues()
+    private void NormalizeDateTimes()
     {
         var entries = ChangeTracker.Entries()
             .Where(entry =>
-                entry.State == EntityState.Added &&
+                (entry.State == EntityState.Added || entry.State == EntityState.Modified) &&
                 (entry.Entity is ExchangeTransaction || entry.Entity is StockTransaction || entry.Entity is TaxSummary));
 
         foreach (var entry in entries)
         {
-            var createdAtProperty = entry.Property(nameof(TaxSummary.CreatedAt));
-            if (createdAtProperty.CurrentValue is DateTime currentValue && currentValue != default)
+            foreach (var property in entry.Properties)
             {
-                continue;
+                if (property.CurrentValue is DateTime currentValue)
+                {
+                    property.CurrentValue = NormalizeToUtc(currentValue, entry.State == EntityState.Added);
+                }
             }
-
-            createdAtProperty.CurrentValue = DateTime.UtcNow;
         }
+    }
+
+    private static DateTime NormalizeToUtc(DateTime value, bool useUtcNowWhenDefault)
+    {
+        if (value == default)
+        {
+            return useUtcNowWhenDefault ? DateTime.UtcNow : value;
+        }
+
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+            _ => value
+        };
     }
 }
