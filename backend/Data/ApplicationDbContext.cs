@@ -57,6 +57,9 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<TaxSummary>(entity =>
         {
             entity.ToTable("tax_summary");
+            entity.Property(x => x.CreatedAt)
+                .HasColumnName("created_at")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
     }
 
@@ -77,11 +80,11 @@ public class ApplicationDbContext : DbContext
         var entries = ChangeTracker.Entries()
             .Where(entry =>
                 entry.State == EntityState.Added &&
-                (entry.Entity is ExchangeTransaction || entry.Entity is StockTransaction));
+                (entry.Entity is ExchangeTransaction || entry.Entity is StockTransaction || entry.Entity is TaxSummary));
 
         foreach (var entry in entries)
         {
-            var createdAtProperty = entry.Property(nameof(ExchangeTransaction.CreatedAt));
+            var createdAtProperty = entry.Property(nameof(TaxSummary.CreatedAt));
             if (createdAtProperty.CurrentValue is DateTime currentValue && currentValue != default)
             {
                 continue;
