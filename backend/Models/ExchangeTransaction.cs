@@ -6,6 +6,8 @@ public class ExchangeTransaction
 {
     public int Id { get; set; }
 
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
     [Required]
     public DateOnly Date { get; set; }
 

@@ -12,6 +12,8 @@ public class StockTransaction
 {
     public int Id { get; set; }
 
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
     public DateTime ExecutedAt { get; set; }
 
     [Required]

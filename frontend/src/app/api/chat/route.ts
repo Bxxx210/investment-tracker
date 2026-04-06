@@ -205,7 +205,8 @@ function parseBackendTimestamp(value: unknown) {
     return null;
   }
 
-  const parsed = new Date(value);
+  const normalizedValue = value.trim().replace(" ", "T");
+  const parsed = new Date(normalizedValue);
   return Number.isNaN(parsed.getTime()) ? value.trim() : parsed.toISOString();
 }
 

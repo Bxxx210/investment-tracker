@@ -22,6 +22,9 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<ExchangeTransaction>(entity =>
         {
             entity.ToTable("exchange_transactions");
+            entity.Property(x => x.CreatedAt)
+                .HasColumnName("created_at")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(x => x.Date).HasColumnName("date");
             entity.Property(x => x.ThbAmount).HasColumnName("thb_amount");
             entity.Property(x => x.ForeignAmount).HasColumnName("foreign_amount");
@@ -35,6 +38,9 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<StockTransaction>(entity =>
         {
             entity.ToTable("stock_transactions");
+            entity.Property(x => x.CreatedAt)
+                .HasColumnName("created_at")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(x => x.ExecutedAt).HasColumnName("executed_at");
             entity.Property(x => x.Ticker).HasColumnName("ticker");
             entity.Property(x => x.Type).HasColumnName("type").HasConversion<int>();
@@ -52,5 +58,36 @@ public class ApplicationDbContext : DbContext
         {
             entity.ToTable("tax_summary");
         });
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        SetCreatedAtValues();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override int SaveChanges()
+    {
+        SetCreatedAtValues();
+        return base.SaveChanges();
+    }
+
+    private void SetCreatedAtValues()
+    {
+        var entries = ChangeTracker.Entries()
+            .Where(entry =>
+                entry.State == EntityState.Added &&
+                (entry.Entity is ExchangeTransaction || entry.Entity is StockTransaction));
+
+        foreach (var entry in entries)
+        {
+            var createdAtProperty = entry.Property(nameof(ExchangeTransaction.CreatedAt));
+            if (createdAtProperty.CurrentValue is DateTime currentValue && currentValue != default)
+            {
+                continue;
+            }
+
+            createdAtProperty.CurrentValue = DateTime.UtcNow;
+        }
     }
 }
