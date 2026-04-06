@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import ChatHubClient from "@/components/ChatHubClient";
 
 export default function Home() {
-  redirect("/exchange");
+  return <ChatHubClient />;
 }
