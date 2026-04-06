@@ -23,7 +23,12 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+// เปิด redirect ไป HTTPS เฉพาะตอนที่มีพอร์ต HTTPS ให้ใช้งานจริง
+var httpsPort = builder.Configuration["ASPNETCORE_HTTPS_PORT"];
+if (!string.IsNullOrWhiteSpace(httpsPort))
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthorization();
 
