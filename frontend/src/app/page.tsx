@@ -1,101 +1,62 @@
-import Image from "next/image";
-
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <section className="grid gap-6 lg:grid-cols-[1.4fr_0.9fr]">
+      <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-8">
+        <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">
+          Overview
+        </p>
+        <h3 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
+          จัดการการลงทุนได้ในมุมมองเดียว
+        </h3>
+        <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+          หน้านี้เป็นโครงหลักสำหรับบันทึกแลกเงิน ซื้อขายหุ้น และสรุปภาษี พร้อมต่อยอดเป็น dashboard จริงในขั้นถัดไป
+        </p>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          {[
+            { label: "แลกเงิน", value: "USD / THB" },
+            { label: "หุ้น", value: "Buy / Sell" },
+            { label: "ภาษี", value: "Annual Summary" },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="rounded-3xl border border-white/10 bg-slate-950/40 p-4"
+            >
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
+                {item.label}
+              </p>
+              <p className="mt-3 text-lg font-semibold text-white">
+                {item.value}
+              </p>
+            </div>
+          ))}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </div>
+
+      <div className="grid gap-4">
+        <div className="rounded-[2rem] border border-cyan-400/20 bg-cyan-400/10 p-6 backdrop-blur-xl">
+          <p className="text-sm uppercase tracking-[0.3em] text-cyan-200/70">
+            Today
+          </p>
+          <p className="mt-3 text-2xl font-semibold text-white">
+            Welcome back
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-200">
+            ใช้เมนูด้านซ้ายเพื่อเริ่มบันทึกรายการ หรือเชื่อม backend ในขั้นถัดไป
+          </p>
+        </div>
+
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/40 p-6">
+          <p className="text-sm uppercase tracking-[0.3em] text-slate-400">
+            Notes
+          </p>
+          <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+            <li>• Responsive sidebar บน desktop และ mobile</li>
+            <li>• Header แสดงชื่อแอปชัดเจน</li>
+            <li>• พร้อมต่อยอดเป็นหน้า CRUD จริง</li>
+          </ul>
+        </div>
+      </div>
+    </section>
   );
 }
