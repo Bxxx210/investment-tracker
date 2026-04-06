@@ -8,6 +8,16 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
         ?? "Data Source=investment.db"));
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendDev", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddControllers();
 builder.Services.AddScoped<backend.Services.IExchangeTransactionService, backend.Services.ExchangeTransactionService>();
 builder.Services.AddScoped<backend.Services.IStockTransactionService, backend.Services.StockTransactionService>();
@@ -30,6 +40,7 @@ if (!string.IsNullOrWhiteSpace(httpsPort))
     app.UseHttpsRedirection();
 }
 
+app.UseCors("FrontendDev");
 app.UseAuthorization();
 
 app.MapControllers();

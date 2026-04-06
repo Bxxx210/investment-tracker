@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 const navigationItems = [
-  { href: "/", label: "แลกเงิน" },
-  { href: "/", label: "หุ้น" },
-  { href: "/", label: "สรุปภาษี" },
+  { href: "/exchange", label: "แลกเงิน" },
+  { href: "/stocks", label: "หุ้น" },
+  { href: "/tax", label: "สรุปภาษี" },
 ];
 
 export default function AppShell({
@@ -15,6 +16,7 @@ export default function AppShell({
   children: React.ReactNode;
 }>) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#1f2937_0%,_#0f172a_42%,_#020617_100%)] text-slate-100">
@@ -50,7 +52,12 @@ export default function AppShell({
                 key={`${item.label}-${index}`}
                 href={item.href}
                 onClick={() => setIsSidebarOpen(false)}
-                className="flex items-center gap-3 rounded-2xl border border-transparent px-4 py-3 text-sm font-medium text-slate-300 transition hover:border-cyan-400/30 hover:bg-white/5 hover:text-white"
+                className={[
+                  "flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition",
+                  pathname === item.href
+                    ? "border-cyan-400/30 bg-cyan-400/15 text-white shadow-[0_10px_30px_rgba(34,211,238,0.12)]"
+                    : "border-transparent text-slate-300 hover:border-cyan-400/30 hover:bg-white/5 hover:text-white",
+                ].join(" ")}
               >
                 <span className="h-2.5 w-2.5 rounded-full bg-cyan-400 shadow-[0_0_18px_rgba(34,211,238,0.75)]" />
                 {item.label}
