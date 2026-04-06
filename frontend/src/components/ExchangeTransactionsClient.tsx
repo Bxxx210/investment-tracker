@@ -9,7 +9,9 @@ type ExchangeTransaction = {
   thbAmount: number;
   foreignAmount: number;
   currency: string;
-  rate: number;
+  midRate: number | null;
+  actualRate: number;
+  spread: number | null;
   note?: string | null;
 };
 
@@ -20,7 +22,9 @@ type SaveResponse = {
     thbAmount: number;
     foreignAmount: number;
     currency: string;
-    rate: number;
+    midRate: number | null;
+    actualRate: number;
+    spread: number | null;
     note: string | null;
   };
 };
@@ -106,10 +110,10 @@ export default function ExchangeTransactionsClient() {
 
   const handlePromptChange = (value: string) => {
     setPrompt(value);
-    setPreview(null);
-    setPreviewSource("");
-    setError(null);
-    setSuccessMessage(null);
+      setPreview(null);
+      setPreviewSource("");
+      setError(null);
+      setSuccessMessage(null);
   };
 
   const handlePreview = async () => {
@@ -207,10 +211,10 @@ export default function ExchangeTransactionsClient() {
               Exchange
             </p>
             <h3 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">
-              พิมพ์ข้อความ แล้วให้ Gemini แปลงเป็นรายการ
+              พิมพ์ข้อความ แล้วให้ Gemini แปลงเป็นรายการแลกเงิน
             </h3>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-              ตัวอย่าง: &quot;แลกเงิน 1000 อัตรา 32.3&quot; ระบบจะส่งไป Gemini เพื่อ parse เป็น JSON แล้วบันทึกลง backend ให้อัตโนมัติ
+              ตัวอย่าง: &quot;แลกเงิน 1000 mid 32.1 actual 32.3&quot; ระบบจะส่งไป Gemini เพื่อ parse เป็น JSON แล้วบันทึกลง backend ให้อัตโนมัติ
             </p>
           </div>
           <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100">
@@ -224,15 +228,15 @@ export default function ExchangeTransactionsClient() {
             <span className="text-sm font-medium text-slate-200">
               ข้อความรายการแลกเงิน
             </span>
-            <textarea
-              name="prompt"
-              value={prompt}
-              onChange={(event) => handlePromptChange(event.target.value)}
-              rows={8}
-              placeholder="เช่น แลกเงิน 1000 อัตรา 32.3"
-              className="rounded-3xl border border-white/10 bg-slate-950/50 px-4 py-4 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
-            />
-          </label>
+              <textarea
+                name="prompt"
+                value={prompt}
+                onChange={(event) => handlePromptChange(event.target.value)}
+                rows={8}
+                placeholder="เช่น แลกเงิน 1000 mid 32.1 actual 32.3"
+                className="rounded-3xl border border-white/10 bg-slate-950/50 px-4 py-4 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+              />
+            </label>
 
           <div className="grid gap-3 sm:grid-cols-3">
             {examplePrompts.map((item) => (
@@ -353,7 +357,16 @@ export default function ExchangeTransactionsClient() {
                     </p>
                     <p className="text-sm text-slate-300">
                       {formatMoney(transaction.foreignAmount)}{" "}
-                      {transaction.currency} · เรต {formatRate(transaction.rate)}
+                      {transaction.currency} · mid{" "}
+                      {transaction.midRate === null
+                        ? "-"
+                        : formatRate(transaction.midRate)}
+                      {" · actual "}
+                      {formatRate(transaction.actualRate)}
+                      {" · spread "}
+                      {transaction.spread === null
+                        ? "-"
+                        : formatRate(transaction.spread)}
                     </p>
                   </div>
                 </div>

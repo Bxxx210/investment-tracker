@@ -12,8 +12,7 @@ public class StockTransaction
 {
     public int Id { get; set; }
 
-    [Required]
-    public DateOnly Date { get; set; }
+    public DateTime ExecutedAt { get; set; }
 
     [Required]
     [StringLength(20)]
@@ -26,19 +25,22 @@ public class StockTransaction
     public decimal Quantity { get; set; }
 
     [Range(typeof(decimal), "0.0000001", "79228162514264337593543950335")]
-    public decimal PriceForeign { get; set; }
-
-    [Range(typeof(decimal), "0.0000001", "79228162514264337593543950335")]
-    public decimal RateAtTrade { get; set; }
-
-    [Range(typeof(decimal), "0.0000001", "79228162514264337593543950335")]
-    public decimal PriceThb { get; set; }
+    public decimal PriceUsd { get; set; }
 
     [Range(typeof(decimal), "0", "79228162514264337593543950335")]
-    public decimal FeeForeign { get; set; }
+    public decimal FeeUsd { get; set; }
 
     [Range(typeof(decimal), "0", "79228162514264337593543950335")]
-    public decimal FeeThb { get; set; }
+    public decimal VatUsd { get; set; }
+
+    [Range(typeof(decimal), "0.0000001", "79228162514264337593543950335")]
+    public decimal TotalCostUsd { get; set; }
+
+    [Range(typeof(decimal), "0.0000001", "79228162514264337593543950335")]
+    public decimal? RateAtTrade { get; set; }
+
+    [Range(typeof(decimal), "0.0000001", "79228162514264337593543950335")]
+    public decimal? PriceThb { get; set; }
 
     [StringLength(500)]
     public string? Note { get; set; }

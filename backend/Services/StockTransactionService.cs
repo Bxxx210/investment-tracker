@@ -26,7 +26,7 @@ public class StockTransactionService : IStockTransactionService
     {
         return await _dbContext.StockTransactions
             .AsNoTracking()
-            .OrderBy(x => x.Date)
+            .OrderBy(x => x.ExecutedAt)
             .ThenBy(x => x.Id)
             .ToListAsync();
     }
@@ -41,19 +41,21 @@ public class StockTransactionService : IStockTransactionService
     public async Task<StockTransaction> CreateAsync(StockTransaction transaction)
     {
         Validate(transaction);
+        var normalized = NormalizeStockTransaction(transaction);
 
         var created = new StockTransaction
         {
-            Date = transaction.Date,
-            Ticker = NormalizeTicker(transaction.Ticker),
-            Type = transaction.Type,
-            Quantity = transaction.Quantity,
-            PriceForeign = transaction.PriceForeign,
-            RateAtTrade = transaction.RateAtTrade,
-            PriceThb = transaction.PriceThb,
-            FeeForeign = transaction.FeeForeign,
-            FeeThb = transaction.FeeThb,
-            Note = transaction.Note
+            ExecutedAt = normalized.ExecutedAt,
+            Ticker = normalized.Ticker,
+            Type = normalized.Type,
+            Quantity = normalized.Quantity,
+            PriceUsd = normalized.PriceUsd,
+            FeeUsd = normalized.FeeUsd,
+            VatUsd = normalized.VatUsd,
+            TotalCostUsd = normalized.TotalCostUsd,
+            RateAtTrade = normalized.RateAtTrade,
+            PriceThb = normalized.PriceThb,
+            Note = normalized.Note
         };
 
         _dbContext.StockTransactions.Add(created);
@@ -71,16 +73,18 @@ public class StockTransactionService : IStockTransactionService
             return null;
         }
 
-        existing.Date = transaction.Date;
-        existing.Ticker = NormalizeTicker(transaction.Ticker);
-        existing.Type = transaction.Type;
-        existing.Quantity = transaction.Quantity;
-        existing.PriceForeign = transaction.PriceForeign;
-        existing.RateAtTrade = transaction.RateAtTrade;
-        existing.PriceThb = transaction.PriceThb;
-        existing.FeeForeign = transaction.FeeForeign;
-        existing.FeeThb = transaction.FeeThb;
-        existing.Note = transaction.Note;
+        var normalized = NormalizeStockTransaction(transaction);
+        existing.ExecutedAt = normalized.ExecutedAt;
+        existing.Ticker = normalized.Ticker;
+        existing.Type = normalized.Type;
+        existing.Quantity = normalized.Quantity;
+        existing.PriceUsd = normalized.PriceUsd;
+        existing.FeeUsd = normalized.FeeUsd;
+        existing.VatUsd = normalized.VatUsd;
+        existing.TotalCostUsd = normalized.TotalCostUsd;
+        existing.RateAtTrade = normalized.RateAtTrade;
+        existing.PriceThb = normalized.PriceThb;
+        existing.Note = normalized.Note;
 
         await _dbContext.SaveChangesAsync();
         return existing;
@@ -103,6 +107,42 @@ public class StockTransactionService : IStockTransactionService
     {
         ArgumentNullException.ThrowIfNull(transaction);
         transaction.Ticker = NormalizeTicker(transaction.Ticker);
+    }
+
+    private static StockTransaction NormalizeStockTransaction(StockTransaction transaction)
+    {
+        var executedAt = transaction.ExecutedAt == default
+            ? DateTime.Now
+            : transaction.ExecutedAt;
+
+        var totalCostUsd = transaction.TotalCostUsd;
+        if (totalCostUsd <= 0)
+        {
+            totalCostUsd = (transaction.PriceUsd * transaction.Quantity)
+                + transaction.FeeUsd
+                + transaction.VatUsd;
+        }
+
+        var priceThb = transaction.PriceThb;
+        if (transaction.RateAtTrade.HasValue)
+        {
+            priceThb = totalCostUsd * transaction.RateAtTrade.Value;
+        }
+
+        return new StockTransaction
+        {
+            ExecutedAt = executedAt,
+            Ticker = NormalizeTicker(transaction.Ticker),
+            Type = transaction.Type,
+            Quantity = transaction.Quantity,
+            PriceUsd = transaction.PriceUsd,
+            FeeUsd = transaction.FeeUsd,
+            VatUsd = transaction.VatUsd,
+            TotalCostUsd = totalCostUsd,
+            RateAtTrade = transaction.RateAtTrade,
+            PriceThb = priceThb,
+            Note = transaction.Note
+        };
     }
 
     private static string NormalizeTicker(string? ticker)

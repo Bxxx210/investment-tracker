@@ -5,7 +5,9 @@ type ExchangeTransactionPayload = {
   thbAmount: number;
   foreignAmount: number;
   currency: string;
-  rate: number;
+  midRate: number | null;
+  actualRate: number;
+  spread: number | null;
   note: string | null;
 };
 
@@ -43,10 +45,21 @@ const parsedTransactionSchema = {
     thbAmount: { type: "number" },
     foreignAmount: { type: "number" },
     currency: { type: "string" },
-    rate: { type: "number" },
+    midRate: { type: ["number", "null"] },
+    actualRate: { type: "number" },
+    spread: { type: ["number", "null"] },
     note: { type: ["string", "null"] },
   },
-  required: ["date", "thbAmount", "foreignAmount", "currency", "rate", "note"],
+  required: [
+    "date",
+    "thbAmount",
+    "foreignAmount",
+    "currency",
+    "actualRate",
+    "midRate",
+    "spread",
+    "note",
+  ],
   additionalProperties: false,
 } as const;
 
@@ -56,15 +69,45 @@ function getBangkokToday() {
   }).format(new Date());
 }
 
+function normalizeDate(value: string | undefined) {
+  if (!value) {
+    return getBangkokToday();
+  }
+
+  const trimmed = value.trim();
+  const asDate = new Date(trimmed);
+
+  if (Number.isNaN(asDate.getTime())) {
+    return trimmed.slice(0, 10) || getBangkokToday();
+  }
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+  }).format(asDate);
+}
+
 function normalizeParsedTransaction(
   value: ParsedExchangeTransaction
 ): ParsedExchangeTransaction {
+  const midRate =
+    value.midRate === null || value.midRate === undefined
+      ? null
+      : Number(value.midRate);
+  const actualRate = Number(value.actualRate);
+
   return {
-    date: value.date,
+    date: normalizeDate(value.date),
     thbAmount: Number(value.thbAmount),
     foreignAmount: Number(value.foreignAmount),
     currency: value.currency?.trim().toUpperCase() || "USD",
-    rate: Number(value.rate),
+    midRate,
+    actualRate,
+    spread:
+      midRate === null
+        ? null
+        : Number.isFinite(actualRate) && Number.isFinite(midRate)
+          ? actualRate - midRate
+          : null,
     note: value.note?.trim() ? value.note.trim() : null,
   };
 }
@@ -92,8 +135,10 @@ async function parseExchangeTextWithGemini(text: string) {
     "- thbAmount: จำนวนเงินบาท",
     "- foreignAmount: จำนวนเงินสกุลต่างประเทศ",
     "- currency: สกุลเงินต่างประเทศ ค่าเริ่มต้น USD ถ้าไม่ระบุ",
-    "- rate: อัตราแลกเปลี่ยนต่อ 1 หน่วยเงินต่างประเทศเป็นเงินบาท",
-    "- ถ้าผู้ใช้ระบุเพียงเงินบาทและอัตรา ให้คำนวณ foreignAmount = thbAmount / rate และปัดทศนิยม 2 ตำแหน่ง",
+    "- midRate: เรทกลางตลาด ถ้าไม่ระบุให้เป็น null",
+    "- actualRate: เรทจริงที่ใช้",
+    "- spread: actualRate - midRate ถ้า midRate ไม่มีให้เป็น null",
+    "- ถ้าผู้ใช้ระบุเพียงเงินบาทและเรท ให้คำนวณ foreignAmount = thbAmount / actualRate และปัดทศนิยม 2 ตำแหน่ง",
     "- note: ถ้ามีหมายเหตุให้ใส่ ถ้าไม่มีให้เป็น null",
     `- ถ้าข้อความไม่มีวันที่ ให้ใช้ ${getBangkokToday()}`,
     "",
@@ -167,6 +212,10 @@ async function saveExchangeTransaction(payload: ExchangeTransactionPayload) {
               ? `: ${JSON.stringify((body as { detail?: unknown }).detail)}`
               : ""
           }`
+        : typeof body === "object" && body !== null && "errors" in body
+          ? `Backend validation error: ${JSON.stringify(
+              (body as { errors?: unknown }).errors
+            )}`
         : `Backend error (${response.status})`
     );
   }

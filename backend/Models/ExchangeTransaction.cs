@@ -20,7 +20,13 @@ public class ExchangeTransaction
     public string Currency { get; set; } = "USD";
 
     [Range(typeof(decimal), "0.0000001", "79228162514264337593543950335")]
-    public decimal Rate { get; set; }
+    public decimal? MidRate { get; set; }
+
+    [Range(typeof(decimal), "0.0000001", "79228162514264337593543950335")]
+    public decimal ActualRate { get; set; }
+
+    [Range(typeof(decimal), "-79228162514264337593543950335", "79228162514264337593543950335")]
+    public decimal? Spread { get; set; }
 
     [StringLength(500)]
     public string? Note { get; set; }

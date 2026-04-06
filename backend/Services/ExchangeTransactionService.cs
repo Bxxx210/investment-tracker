@@ -41,14 +41,16 @@ public class ExchangeTransactionService : IExchangeTransactionService
     public async Task<ExchangeTransaction> CreateAsync(ExchangeTransaction transaction)
     {
         Validate(transaction);
-
+        NormalizeRates(transaction);
         var created = new ExchangeTransaction
         {
             Date = transaction.Date,
             ThbAmount = transaction.ThbAmount,
             ForeignAmount = transaction.ForeignAmount,
-            Currency = NormalizeCurrency(transaction.Currency),
-            Rate = transaction.Rate,
+            Currency = transaction.Currency,
+            MidRate = transaction.MidRate,
+            ActualRate = transaction.ActualRate,
+            Spread = transaction.Spread,
             Note = transaction.Note
         };
 
@@ -67,11 +69,14 @@ public class ExchangeTransactionService : IExchangeTransactionService
             return null;
         }
 
+        NormalizeRates(transaction);
         existing.Date = transaction.Date;
         existing.ThbAmount = transaction.ThbAmount;
         existing.ForeignAmount = transaction.ForeignAmount;
-        existing.Currency = NormalizeCurrency(transaction.Currency);
-        existing.Rate = transaction.Rate;
+        existing.Currency = transaction.Currency;
+        existing.MidRate = transaction.MidRate;
+        existing.ActualRate = transaction.ActualRate;
+        existing.Spread = transaction.Spread;
         existing.Note = transaction.Note;
 
         await _dbContext.SaveChangesAsync();
@@ -95,6 +100,18 @@ public class ExchangeTransactionService : IExchangeTransactionService
     {
         ArgumentNullException.ThrowIfNull(transaction);
         transaction.Currency = NormalizeCurrency(transaction.Currency);
+    }
+
+    private static void NormalizeRates(ExchangeTransaction transaction)
+    {
+        var midRate = transaction.MidRate;
+        var actualRate = transaction.ActualRate;
+
+        transaction.MidRate = midRate;
+        transaction.ActualRate = actualRate;
+        transaction.Spread = midRate.HasValue
+            ? actualRate - midRate.Value
+            : null;
     }
 
     private static string NormalizeCurrency(string? currency)
