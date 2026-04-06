@@ -127,8 +127,9 @@ function buildHistoryText(item: ChatHistoryItem) {
 
 function parseUtcDate(value: string) {
   const trimmed = value.trim();
-  const hasTimeZone = /([zZ]|[+-]\d{2}:\d{2})$/.test(trimmed);
-  const parsed = new Date(hasTimeZone ? trimmed : `${trimmed}Z`);
+  const normalized = trimmed.replace(" ", "T");
+  const hasTimeZone = /([zZ]|[+-]\d{2}:\d{2})$/.test(normalized);
+  const parsed = new Date(hasTimeZone ? normalized : `${normalized}Z`);
 
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
@@ -166,14 +167,13 @@ function sortHistoryItems(items: ChatHistoryItem[]) {
 }
 
 function formatThaiDateTime(value: string) {
-  const parsed = parseUtcDate(value);
+  const d = new Date(value);
 
-  if (!parsed) {
+  if (Number.isNaN(d.getTime())) {
     return value;
   }
 
-  return parsed.toLocaleString("th-TH", {
-    calendar: "gregory",
+  const formatted = new Intl.DateTimeFormat("en-TH", {
     timeZone: "Asia/Bangkok",
     day: "numeric",
     month: "short",
@@ -181,7 +181,11 @@ function formatThaiDateTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  });
+  }).format(d);
+
+  console.log("createdAt", value, "formatted", formatted);
+
+  return formatted;
 }
 
 async function loadHistoryItems() {
@@ -199,10 +203,6 @@ export default function ChatHubClient() {
   const createIdRef = useRef(createConversationIdFactory());
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const historyRef = useRef<HTMLDivElement | null>(null);
-  const hasMountedRef = useRef(false);
-  const previousConversationLengthRef = useRef(0);
-  const shouldScrollHistoryAfterSaveRef = useRef(false);
   const [draft, setDraft] = useState("");
   const [conversation, setConversation] = useState<ConversationMessage[]>(
     () => initialConversation(() => createIdRef.current())
@@ -231,47 +231,25 @@ export default function ChatHubClient() {
   };
 
   const scrollToBottom = () => {
-    requestAnimationFrame(() => {
+    setTimeout(() => {
       bottomRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "end",
       });
-    });
-  };
-
-  const scrollHistoryIntoView = () => {
-    requestAnimationFrame(() => {
-      historyRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
+    }, 100);
   };
 
   useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      previousConversationLengthRef.current = conversation.length;
-      return;
+    if (conversation.length > 0) {
+      scrollToBottom();
     }
-
-    if (conversation.length > previousConversationLengthRef.current) {
-      if (shouldScrollHistoryAfterSaveRef.current) {
-        shouldScrollHistoryAfterSaveRef.current = false;
-        scrollHistoryIntoView();
-      } else {
-        scrollToBottom();
-      }
-    }
-
-    previousConversationLengthRef.current = conversation.length;
   }, [conversation]);
 
   useEffect(() => {
-    if (isPreviewing || isSaving) {
+    if (history.length > 0) {
       scrollToBottom();
     }
-  }, [isPreviewing, isSaving]);
+  }, [history]);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -391,7 +369,6 @@ export default function ChatHubClient() {
       const data = (await response.json()) as ChatResponse;
       setPendingAnalysis(null);
       setHistory(await loadHistoryItems());
-      shouldScrollHistoryAfterSaveRef.current = true;
       pushBotText(data.message ?? "บันทึกแล้วครับ!", "success");
     } catch (error) {
       updatePreviewStatus("pending");
@@ -453,7 +430,7 @@ export default function ChatHubClient() {
           </div>
 
           <div className="space-y-3">
-            <div ref={historyRef} className="flex items-center gap-3 px-2">
+            <div className="flex items-center gap-3 px-2">
               <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-slate-400">
                 ประวัติที่บันทึกแล้ว
               </span>

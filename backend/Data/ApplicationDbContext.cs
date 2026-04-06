@@ -42,7 +42,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(x => x.ExchangeType)
                 .HasColumnName("exchange_type")
                 .HasConversion(ExchangeTypeConverter)
-                .HasDefaultValue("buy_usd");
+                .HasDefaultValue(ExchangeType.BuyUsd);
             entity.Property(x => x.Date).HasColumnName("date");
             entity.Property(x => x.ThbAmount).HasColumnName("thb_amount");
             entity.Property(x => x.ForeignAmount).HasColumnName("foreign_amount");
