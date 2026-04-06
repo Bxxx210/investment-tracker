@@ -188,12 +188,25 @@ function normalizeDateTime(value: string | null | undefined) {
   return asDate.toISOString().slice(0, 19);
 }
 
+function buildExchangeSortTimestamp(date: string) {
+  return `${date}T12:00:00.000`;
+}
+
 function normalizeCurrency(value: string | null | undefined) {
   return value?.trim().toUpperCase() || "USD";
 }
 
 function normalizeNumber(value: number | null | undefined) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function parseBackendTimestamp(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value.trim() : parsed.toISOString();
 }
 
 function extractGeminiText(response: GeminiGenerateContentResponse) {
@@ -260,6 +273,8 @@ function buildPrompt(text: string) {
     "- ถ้าไม่แน่ใจ ให้ intent = unknown",
     "- data ต้องเก็บเฉพาะฟิลด์ที่เกี่ยวข้อง",
     "- exchange ต้องมี date, thbAmount, foreignAmount, currency, midRate, actualRate, spread, note",
+    "- ถ้าเป็นข้อความแลกเงินที่มีแค่ฝั่งเดียว เช่น foreignAmount หรือ thbAmount ให้คืนข้อมูลเท่าที่รู้ได้ แล้วปล่อยอีกฝั่งเป็น null",
+    "- ถ้ามี actualRate และมี amount ฝั่งเดียว ให้ช่วยคำนวณอีกฝั่งถ้าเป็นไปได้",
     "- stock ต้องมี executedAt, ticker, quantity, priceUsd, feeUsd, vatUsd, totalCostUsd, rateAtTrade, priceThb, note",
     "- date ใช้รูปแบบ yyyy-MM-dd",
     "- executedAt ใช้รูปแบบ yyyy-MM-ddTHH:mm:ss",
@@ -330,13 +345,27 @@ function normalizeExchangeAnalysis(analysis: ChatAnalysis) {
   const actualRate = normalizeNumber(analysis.data.actualRate);
   const midRate = normalizeNumber(analysis.data.midRate);
   const currency = normalizeCurrency(analysis.data.currency);
+  const resolvedThbAmount =
+    thbAmount ??
+    (foreignAmount !== null && actualRate !== null ? foreignAmount * actualRate : null);
+  const resolvedForeignAmount =
+    foreignAmount ??
+    (thbAmount !== null && actualRate !== null && actualRate > 0
+      ? thbAmount / actualRate
+      : null);
+  const resolvedSpread =
+    midRate === null
+      ? normalizeNumber(analysis.data.spread)
+      : actualRate === null
+        ? normalizeNumber(analysis.data.spread)
+        : actualRate - midRate;
 
   if (
-    thbAmount === null ||
-    foreignAmount === null ||
     actualRate === null ||
-    thbAmount <= 0 ||
-    foreignAmount <= 0 ||
+    resolvedThbAmount === null ||
+    resolvedForeignAmount === null ||
+    resolvedThbAmount <= 0 ||
+    resolvedForeignAmount <= 0 ||
     actualRate <= 0
   ) {
     throw new Error("ข้อมูลแลกเงินไม่ครบ");
@@ -346,28 +375,22 @@ function normalizeExchangeAnalysis(analysis: ChatAnalysis) {
     intent: "exchange" as const,
     data: {
       date,
-      thbAmount,
-      foreignAmount,
+      thbAmount: resolvedThbAmount,
+      foreignAmount: resolvedForeignAmount,
       currency,
       midRate,
       actualRate,
-      spread:
-        midRate === null
-          ? normalizeNumber(analysis.data.spread)
-          : actualRate - midRate,
+      spread: resolvedSpread,
       note: analysis.data.note?.trim() ? analysis.data.note.trim() : null,
     } satisfies NormalizedExchangeData,
     summary: buildExchangeSummary({
       date,
-      thbAmount,
-      foreignAmount,
+      thbAmount: resolvedThbAmount,
+      foreignAmount: resolvedForeignAmount,
       currency,
       midRate,
       actualRate,
-      spread:
-        midRate === null
-          ? normalizeNumber(analysis.data.spread)
-          : actualRate - midRate,
+      spread: resolvedSpread,
     } satisfies ExchangeSummaryInput),
   };
 }
@@ -449,6 +472,12 @@ function convertExchangeHistoryItem(
 ): ExchangeHistoryItem {
   const id = Number(transaction.id ?? 0);
   const date = String(transaction.date ?? transaction.Date ?? "");
+  const createdAt = parseBackendTimestamp(
+    transaction.createdAt ??
+      transaction.CreatedAt ??
+      transaction.created_at ??
+      transaction.created
+  );
   const thbAmount = Number(transaction.thbAmount ?? transaction.ThbAmount ?? 0);
   const foreignAmount = Number(
     transaction.foreignAmount ?? transaction.ForeignAmount ?? 0
@@ -467,7 +496,7 @@ function convertExchangeHistoryItem(
   return {
     kind: "exchange",
     id,
-    timestamp: date,
+    timestamp: createdAt ?? buildExchangeSortTimestamp(date),
     title: "แลกเงิน",
     lines: buildExchangeSummary({
       date,
@@ -489,6 +518,12 @@ function convertStockHistoryItem(
   const id = Number(transaction.id ?? 0);
   const executedAt = String(
     transaction.executedAt ?? transaction.ExecutedAt ?? ""
+  );
+  const createdAt = parseBackendTimestamp(
+    transaction.createdAt ??
+      transaction.CreatedAt ??
+      transaction.created_at ??
+      transaction.created
   );
   const ticker = String(transaction.ticker ?? transaction.Ticker ?? "");
   const type = Number(transaction.type ?? transaction.Type ?? 1) === 1
@@ -513,7 +548,7 @@ function convertStockHistoryItem(
   return {
     kind: type,
     id,
-    timestamp: executedAt,
+    timestamp: createdAt ?? normalizeDateTime(executedAt),
     title: type === "stock_buy" ? "ซื้อหุ้น" : "ขายหุ้น",
     lines: buildStockSummary(type, {
       executedAt,
@@ -553,9 +588,14 @@ async function loadChatHistory(): Promise<ChatHistoryItem[]> {
   const exchangeItems = exchangeData.map(convertExchangeHistoryItem);
   const stockItems = stockData.map(convertStockHistoryItem);
 
-  return [...exchangeItems, ...stockItems].sort((left, right) =>
-    left.timestamp.localeCompare(right.timestamp)
-  );
+  return [...exchangeItems, ...stockItems].sort((left, right) => {
+    const timeOrder = left.timestamp.localeCompare(right.timestamp);
+    if (timeOrder !== 0) {
+      return timeOrder;
+    }
+
+    return left.id - right.id;
+  });
 }
 
 async function saveExchange(

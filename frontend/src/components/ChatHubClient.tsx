@@ -34,12 +34,14 @@ type ChatHistoryItem =
   | {
       kind: "exchange";
       id: number;
+      timestamp: string;
       title: string;
       lines: string[];
     }
   | {
       kind: "stock_buy" | "stock_sell";
       id: number;
+      timestamp: string;
       title: string;
       lines: string[];
     };
@@ -153,6 +155,17 @@ function quickReplyExamples() {
   return starterPhrases;
 }
 
+function sortHistoryItems(items: ChatHistoryItem[]) {
+  return [...items].sort((left, right) => {
+    const timeOrder = left.timestamp.localeCompare(right.timestamp);
+    if (timeOrder !== 0) {
+      return timeOrder;
+    }
+
+    return left.id - right.id;
+  });
+}
+
 async function loadHistoryItems() {
   const response = await fetch("/api/chat", { cache: "no-store" });
 
@@ -161,7 +174,7 @@ async function loadHistoryItems() {
   }
 
   const data = (await response.json()) as ChatResponse;
-  return data.history ?? [];
+  return sortHistoryItems(data.history ?? []);
 }
 
 export default function ChatHubClient() {
