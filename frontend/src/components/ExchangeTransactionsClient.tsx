@@ -25,6 +25,8 @@ type SaveResponse = {
   };
 };
 
+type PreviewResponse = SaveResponse;
+
 const examplePrompts = [
   "แลกเงิน 1000 อัตรา 32.3",
   "แลกเงิน USD 100 วันที่ 2026-04-06 เรต 33.5",
@@ -68,9 +70,12 @@ async function readErrorMessage(response: Response) {
 
 export default function ExchangeTransactionsClient() {
   const [prompt, setPrompt] = useState("");
+  const [preview, setPreview] = useState<PreviewResponse["parsed"] | null>(null);
+  const [previewSource, setPreviewSource] = useState("");
   const [transactions, setTransactions] = useState<ExchangeTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -99,6 +104,52 @@ export default function ExchangeTransactionsClient() {
     }
   }, []);
 
+  const handlePromptChange = (value: string) => {
+    setPrompt(value);
+    setPreview(null);
+    setPreviewSource("");
+    setError(null);
+    setSuccessMessage(null);
+  };
+
+  const handlePreview = async () => {
+    setIsPreviewing(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch("/api/exchange-transactions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "preview",
+          text: prompt,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+      }
+
+      const data = (await response.json()) as PreviewResponse;
+      setPreview(data.parsed ?? null);
+      setPreviewSource(prompt);
+      setSuccessMessage(data.message ?? "แปลง JSON เรียบร้อยแล้ว");
+    } catch (previewError) {
+      setPreview(null);
+      setPreviewSource("");
+      setError(
+        previewError instanceof Error
+          ? previewError.message
+          : "ไม่สามารถแปลงรายการได้"
+      );
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
   useEffect(() => {
     void loadTransactions();
   }, [loadTransactions]);
@@ -110,12 +161,19 @@ export default function ExchangeTransactionsClient() {
     setSuccessMessage(null);
 
     try {
+      if (!preview || previewSource !== prompt) {
+        throw new Error("กรุณากดดูตัวอย่าง JSON ก่อนบันทึก");
+      }
+
       const response = await fetch("/api/exchange-transactions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ text: prompt }),
+        body: JSON.stringify({
+          mode: "save",
+          transaction: preview,
+        }),
       });
 
       if (!response.ok) {
@@ -169,7 +227,7 @@ export default function ExchangeTransactionsClient() {
             <textarea
               name="prompt"
               value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
+              onChange={(event) => handlePromptChange(event.target.value)}
               rows={8}
               placeholder="เช่น แลกเงิน 1000 อัตรา 32.3"
               className="rounded-3xl border border-white/10 bg-slate-950/50 px-4 py-4 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
@@ -196,15 +254,53 @@ export default function ExchangeTransactionsClient() {
                 <p className="text-emerald-300">{successMessage}</p>
               ) : null}
             </div>
-            <button
-              type="submit"
-              disabled={isSaving || prompt.trim().length === 0}
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-cyan-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSaving ? "กำลังแปลงและบันทึก..." : "แปลงและบันทึก"}
-            </button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => void handlePreview()}
+                disabled={isPreviewing || prompt.trim().length === 0}
+                className="inline-flex h-12 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isPreviewing ? "กำลังสร้าง JSON..." : "ดูตัวอย่าง JSON"}
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving || !preview || previewSource !== prompt}
+                className="inline-flex h-12 items-center justify-center rounded-2xl bg-cyan-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSaving ? "กำลังบันทึก..." : "บันทึกจาก JSON"}
+              </button>
+            </div>
           </div>
         </form>
+
+        <div className="mt-6 rounded-[1.75rem] border border-cyan-400/20 bg-slate-950/60 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-cyan-300/70">
+                Preview
+              </p>
+              <h4 className="mt-2 text-lg font-semibold text-white">
+                JSON ที่ Gemini แปลงไว้
+              </h4>
+            </div>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
+              {preview ? "พร้อมบันทึก" : "รอการแปลง"}
+            </span>
+          </div>
+
+          <pre className="mt-4 overflow-x-auto rounded-3xl border border-white/10 bg-black/30 p-4 text-sm leading-6 text-slate-200">
+            {preview
+              ? JSON.stringify(preview, null, 2)
+              : "กด \"ดูตัวอย่าง JSON\" เพื่อให้ Gemini แปลงข้อความก่อนบันทึก"}
+          </pre>
+
+          {previewSource ? (
+            <p className="mt-3 text-xs leading-5 text-slate-400">
+              Preview จากข้อความล่าสุด: {previewSource}
+            </p>
+          ) : null}
+        </div>
       </section>
 
       <section className="rounded-[2rem] border border-white/10 bg-slate-950/50 p-5 shadow-2xl shadow-slate-950/20 backdrop-blur-xl sm:p-8">

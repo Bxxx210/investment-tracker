@@ -21,6 +21,16 @@ type GeminiGenerateContentResponse = {
   }>;
 };
 
+type ExchangeTransactionsRequest =
+  | {
+      mode: "preview";
+      text: string;
+    }
+  | {
+      mode: "save";
+      transaction: ExchangeTransactionPayload;
+    };
+
 const backendBaseUrl =
   process.env.BACKEND_API_BASE_URL ?? "http://127.0.0.1:5215";
 const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -189,27 +199,43 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { text?: string };
-    const text = body.text?.trim();
+    const body = (await request.json()) as ExchangeTransactionsRequest;
 
-    if (!text) {
-      return NextResponse.json(
-        { message: "กรุณาพิมพ์ข้อความสำหรับแปลงรายการแลกเงิน" },
-        { status: 400 }
-      );
+    if (body.mode === "preview") {
+      const text = body.text.trim();
+
+      if (!text) {
+        return NextResponse.json(
+          { message: "กรุณาพิมพ์ข้อความสำหรับแปลงรายการแลกเงิน" },
+          { status: 400 }
+        );
+      }
+
+      const parsed = await parseExchangeTextWithGemini(text);
+
+      return NextResponse.json({
+        message: "แปลงรายการเป็น JSON เรียบร้อยแล้ว",
+        parsed,
+      });
     }
 
-    const parsed = await parseExchangeTextWithGemini(text);
-    const saved = await saveExchangeTransaction(parsed);
+    if (body.mode === "save") {
+      const transaction = normalizeParsedTransaction(body.transaction);
+      const saved = await saveExchangeTransaction(transaction);
 
-    return NextResponse.json({
-      message: "บันทึกรายการแลกเงินเรียบร้อยแล้ว",
-      parsed,
-      saved,
-    });
+      return NextResponse.json({
+        message: "บันทึกรายการแลกเงินเรียบร้อยแล้ว",
+        saved,
+      });
+    }
+
+    return NextResponse.json(
+      { message: "คำขอไม่ถูกต้อง" },
+      { status: 400 }
+    );
   } catch (error) {
     return NextResponse.json(
-      { message: "ไม่สามารถบันทึกรายการแลกเงินได้", detail: toErrorMessage(error) },
+      { message: "ไม่สามารถดำเนินการกับรายการแลกเงินได้", detail: toErrorMessage(error) },
       { status: 500 }
     );
   }
