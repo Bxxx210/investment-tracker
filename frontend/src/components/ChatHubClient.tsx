@@ -168,6 +168,8 @@ export default function ChatHubClient() {
   const createIdRef = useRef(createConversationIdFactory());
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const hasMountedRef = useRef(false);
+  const previousConversationLengthRef = useRef(0);
   const [draft, setDraft] = useState("");
   const [conversation, setConversation] = useState<ConversationMessage[]>(
     () => initialConversation(() => createIdRef.current())
@@ -205,8 +207,24 @@ export default function ChatHubClient() {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [conversation, history, isLoadingHistory, isPreviewing, isSaving]);
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      previousConversationLengthRef.current = conversation.length;
+      return;
+    }
+
+    if (conversation.length > previousConversationLengthRef.current) {
+      scrollToBottom();
+    }
+
+    previousConversationLengthRef.current = conversation.length;
+  }, [conversation]);
+
+  useEffect(() => {
+    if (isPreviewing || isSaving) {
+      scrollToBottom();
+    }
+  }, [isPreviewing, isSaving]);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -493,24 +511,26 @@ export default function ChatHubClient() {
                       {message.summary}
                     </p>
 
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={() => void handleConfirm()}
-                        disabled={isSaving}
-                        className="inline-flex h-12 items-center justify-center rounded-2xl bg-cyan-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        ✅ ยืนยัน
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCancel}
-                        disabled={isSaving}
-                        className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 text-sm font-semibold text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        ❌ ยกเลิก
-                      </button>
-                    </div>
+                    {message.status === "pending" ? (
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={() => void handleConfirm()}
+                          disabled={isSaving}
+                          className="inline-flex h-12 items-center justify-center rounded-2xl bg-cyan-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          ✅ ยืนยัน
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancel}
+                          disabled={isSaving}
+                          className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 text-sm font-semibold text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          ❌ ยกเลิก
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               );
@@ -518,8 +538,17 @@ export default function ChatHubClient() {
 
             {isPreviewing || isSaving ? (
               <div className="flex justify-start">
-                <div className="rounded-[1.6rem] rounded-bl-xl border border-white/10 bg-slate-900/85 px-4 py-3 text-sm leading-7 text-slate-300">
-                  {isPreviewing ? "กำลังให้ Gemini วิเคราะห์ข้อความ..." : "กำลังบันทึก..."}
+                <div className="flex items-center gap-3 rounded-[1.6rem] rounded-bl-xl border border-white/10 bg-slate-900/85 px-4 py-3 text-sm leading-7 text-slate-300">
+                  <span className="flex items-center gap-1.5" aria-label="typing">
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300 [animation-delay:-0.2s]" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300 [animation-delay:-0.1s]" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300" />
+                  </span>
+                  <span>
+                    {isPreviewing
+                      ? "กำลังให้ Gemini วิเคราะห์ข้อความ..."
+                      : "กำลังบันทึก..."}
+                  </span>
                 </div>
               </div>
             ) : null}
