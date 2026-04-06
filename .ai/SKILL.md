@@ -26,13 +26,16 @@ investment-tracker/
 ## Database Schema
 
 ### exchange_transactions
-- id, date
-- thb_amount       ← จำนวนบาท
-- foreign_amount   ← จำนวนเงินต่างประเทศที่ได้
-- currency         ← default USD
-- mid_rate         ← rate กลางตลาด (optional)
-- actual_rate      ← rate จริงที่ใช้ (รวม spread)
-- spread           ← คำนวณอัตโนมัติ (actual - mid)
+- id
+- created_at      ← datetime UTC เก็บใน backend
+- date            ← วันที่ทำรายการ
+- type            ← "buy_usd" (THB→USD) หรือ "sell_usd" (USD→THB)
+- thb_amount      ← จำนวนบาท
+- foreign_amount  ← จำนวน USD
+- currency        ← default USD
+- mid_rate        ← rate กลางตลาด (optional)
+- actual_rate     ← rate จริงที่ใช้ (รวม spread)
+- spread          ← คำนวณอัตโนมัติ
 - note
 
 ### stock_transactions
@@ -65,6 +68,16 @@ investment-tracker/
 - price_thb = total_cost_usd x rate_at_trade (ถ้ามี rate)
 - rate_at_trade optional → กรอกทีหลังได้เพื่อคำนวณภาษี
 - อัตราภาษีตาม bracket กรมสรรพากรไทย
+
+### Business Rules — Exchange
+- buy_usd (THB→USD): ไม่เสียภาษี เป็นแค่แลกเงิน
+- sell_usd (USD→THB): อาจเสียภาษีถ้ากำไรจาก rate
+- ภาษีจาก exchange คิดจาก: 
+  (actual_rate ตอนขาย - actual_rate ตอนซื้อ) x จำนวน USD
+
+### Timezone
+- Backend เก็บ DateTime เป็น UTC เสมอ
+- Frontend แปลงเป็น UTC+7 ก่อนแสดงเสมอ
 
 ## Summary & Tax Calculation Rules
 
