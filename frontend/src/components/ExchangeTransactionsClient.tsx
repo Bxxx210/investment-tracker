@@ -110,10 +110,10 @@ export default function ExchangeTransactionsClient() {
 
   const handlePromptChange = (value: string) => {
     setPrompt(value);
-      setPreview(null);
-      setPreviewSource("");
-      setError(null);
-      setSuccessMessage(null);
+    setPreview(null);
+    setPreviewSource("");
+    setError(null);
+    setSuccessMessage(null);
   };
 
   const handlePreview = async () => {
@@ -210,10 +210,10 @@ export default function ExchangeTransactionsClient() {
             <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">
               Exchange
             </p>
-            <h3 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">
+            <h3 className="mt-2 text-3xl font-semibold leading-tight text-white sm:text-4xl">
               พิมพ์ข้อความ แล้วให้ Gemini แปลงเป็นรายการแลกเงิน
             </h3>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
               ตัวอย่าง: &quot;แลกเงิน 1000 mid 32.1 actual 32.3&quot; ระบบจะส่งไป Gemini เพื่อ parse เป็น JSON แล้วบันทึกลง backend ให้อัตโนมัติ
             </p>
           </div>
@@ -223,18 +223,18 @@ export default function ExchangeTransactionsClient() {
           </div>
         </div>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+        <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
           <label className="grid gap-2">
-            <span className="text-sm font-medium text-slate-200">
+            <span className="text-base font-medium text-slate-100 sm:text-lg">
               ข้อความรายการแลกเงิน
             </span>
               <textarea
                 name="prompt"
                 value={prompt}
                 onChange={(event) => handlePromptChange(event.target.value)}
-                rows={8}
+                rows={10}
                 placeholder="เช่น แลกเงิน 1000 mid 32.1 actual 32.3"
-                className="rounded-3xl border border-white/10 bg-slate-950/50 px-4 py-4 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+                className="rounded-3xl border border-white/10 bg-slate-950/50 px-4 py-4 text-base leading-7 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 sm:text-lg"
               />
             </label>
 
@@ -244,7 +244,7 @@ export default function ExchangeTransactionsClient() {
                 key={item}
                 type="button"
                 onClick={() => setPrompt(item)}
-                className="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-left text-xs leading-5 text-slate-300 transition hover:border-cyan-400/30 hover:bg-white/5 hover:text-white"
+                className="min-h-16 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4 text-left text-sm leading-6 text-slate-300 transition hover:border-cyan-400/30 hover:bg-white/5 hover:text-white sm:text-base"
               >
                 {item}
               </button>
@@ -263,14 +263,14 @@ export default function ExchangeTransactionsClient() {
                 type="button"
                 onClick={() => void handlePreview()}
                 disabled={isPreviewing || prompt.trim().length === 0}
-                className="inline-flex h-12 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-14 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-5 text-base font-semibold text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
               >
                 {isPreviewing ? "กำลังสร้าง JSON..." : "ดูตัวอย่าง JSON"}
               </button>
               <button
                 type="submit"
                 disabled={isSaving || !preview || previewSource !== prompt}
-                className="inline-flex h-12 items-center justify-center rounded-2xl bg-cyan-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-14 items-center justify-center rounded-2xl bg-cyan-400 px-5 text-base font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
               >
                 {isSaving ? "กำลังบันทึก..." : "บันทึกจาก JSON"}
               </button>
@@ -278,13 +278,13 @@ export default function ExchangeTransactionsClient() {
           </div>
         </form>
 
-        <div className="mt-6 rounded-[1.75rem] border border-cyan-400/20 bg-slate-950/60 p-4">
+        <div className="mt-6 rounded-[1.75rem] border border-cyan-400/20 bg-slate-950/60 p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.28em] text-cyan-300/70">
                 Preview
               </p>
-              <h4 className="mt-2 text-lg font-semibold text-white">
+              <h4 className="mt-2 text-xl font-semibold text-white sm:text-2xl">
                 JSON ที่ Gemini แปลงไว้
               </h4>
             </div>
@@ -293,7 +293,7 @@ export default function ExchangeTransactionsClient() {
             </span>
           </div>
 
-          <pre className="mt-4 overflow-x-auto rounded-3xl border border-white/10 bg-black/30 p-4 text-sm leading-6 text-slate-200">
+          <pre className="mt-4 overflow-x-auto rounded-3xl border border-white/10 bg-black/30 p-4 text-sm leading-6 text-slate-200 sm:text-base">
             {preview
               ? JSON.stringify(preview, null, 2)
               : "กด \"ดูตัวอย่าง JSON\" เพื่อให้ Gemini แปลงข้อความก่อนบันทึก"}
@@ -313,14 +313,14 @@ export default function ExchangeTransactionsClient() {
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
               History
             </p>
-            <h3 className="mt-2 text-2xl font-semibold text-white">
+            <h3 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">
               รายการที่บันทึกไว้
             </h3>
           </div>
           <button
             type="button"
             onClick={() => void loadTransactions()}
-            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/10 sm:px-5"
           >
             รีเฟรช
           </button>
@@ -330,7 +330,7 @@ export default function ExchangeTransactionsClient() {
           {isLoading ? (
             <p className="text-sm text-slate-400">กำลังโหลดรายการ...</p>
           ) : transactions.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-sm text-slate-400">
+            <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-base text-slate-400">
               ยังไม่มีรายการแลกเงิน
             </div>
           ) : (
@@ -345,17 +345,17 @@ export default function ExchangeTransactionsClient() {
                       <span className="rounded-full bg-cyan-400/15 px-3 py-1 text-xs font-medium text-cyan-200">
                         #{transaction.id}
                       </span>
-                      <span className="text-sm text-slate-300">
+                      <span className="text-sm text-slate-300 sm:text-base">
                         {transaction.date}
                       </span>
-                      <span className="text-sm text-slate-500">
+                      <span className="text-sm text-slate-500 sm:text-base">
                         {transaction.currency}
                       </span>
                     </div>
-                    <p className="text-base font-semibold text-white">
+                    <p className="text-lg font-semibold text-white sm:text-xl">
                       ฿{formatMoney(transaction.thbAmount)}
                     </p>
-                    <p className="text-sm text-slate-300">
+                    <p className="text-sm leading-6 text-slate-300 sm:text-base">
                       {formatMoney(transaction.foreignAmount)}{" "}
                       {transaction.currency} · mid{" "}
                       {transaction.midRate === null
@@ -371,7 +371,7 @@ export default function ExchangeTransactionsClient() {
                   </div>
                 </div>
                 {transaction.note ? (
-                  <p className="mt-3 text-sm leading-6 text-slate-400">
+                  <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">
                     {transaction.note}
                   </p>
                 ) : null}

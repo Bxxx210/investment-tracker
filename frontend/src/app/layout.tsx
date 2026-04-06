@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import AppShell from "@/components/AppShell";
@@ -17,6 +18,12 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Investment Tracker",
   description: "Web app สำหรับบันทึกการลงทุนและสรุปภาษี",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
