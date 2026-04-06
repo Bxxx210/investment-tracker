@@ -1,4 +1,6 @@
+using backend.Data;
 using backend.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services;
 
@@ -13,85 +15,88 @@ public interface IStockTransactionService
 
 public class StockTransactionService : IStockTransactionService
 {
-    private readonly List<StockTransaction> _transactions = [];
-    private readonly object _lock = new();
-    private int _nextId = 1;
+    private readonly ApplicationDbContext _dbContext;
+
+    public StockTransactionService(ApplicationDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
 
     public IEnumerable<StockTransaction> GetAll()
     {
-        lock (_lock)
-        {
-            return _transactions
-                .OrderBy(x => x.Date)
-                .ThenBy(x => x.Id)
-                .Select(Clone)
-                .ToArray();
-        }
+        return _dbContext.StockTransactions
+            .AsNoTracking()
+            .OrderBy(x => x.Date)
+            .ThenBy(x => x.Id)
+            .ToArray();
     }
 
     public StockTransaction? GetById(int id)
     {
-        lock (_lock)
-        {
-            var transaction = _transactions.FirstOrDefault(x => x.Id == id);
-            return transaction is null ? null : Clone(transaction);
-        }
+        return _dbContext.StockTransactions
+            .AsNoTracking()
+            .FirstOrDefault(x => x.Id == id);
     }
 
     public StockTransaction Create(StockTransaction transaction)
     {
         Validate(transaction);
 
-        lock (_lock)
+        var created = new StockTransaction
         {
-            var created = Clone(transaction);
-            created.Id = _nextId++;
-            created.Ticker = NormalizeTicker(created.Ticker);
-            _transactions.Add(created);
-            return Clone(created);
-        }
+            Date = transaction.Date,
+            Ticker = NormalizeTicker(transaction.Ticker),
+            Type = transaction.Type,
+            Quantity = transaction.Quantity,
+            PriceForeign = transaction.PriceForeign,
+            RateAtTrade = transaction.RateAtTrade,
+            PriceThb = transaction.PriceThb,
+            FeeForeign = transaction.FeeForeign,
+            FeeThb = transaction.FeeThb,
+            Note = transaction.Note
+        };
+
+        _dbContext.StockTransactions.Add(created);
+        _dbContext.SaveChanges();
+        return created;
     }
 
     public StockTransaction? Update(int id, StockTransaction transaction)
     {
         Validate(transaction);
 
-        lock (_lock)
+        var existing = _dbContext.StockTransactions.FirstOrDefault(x => x.Id == id);
+        if (existing is null)
         {
-            var existing = _transactions.FirstOrDefault(x => x.Id == id);
-            if (existing is null)
-            {
-                return null;
-            }
-
-            existing.Date = transaction.Date;
-            existing.Ticker = NormalizeTicker(transaction.Ticker);
-            existing.Type = transaction.Type;
-            existing.Quantity = transaction.Quantity;
-            existing.PriceForeign = transaction.PriceForeign;
-            existing.RateAtTrade = transaction.RateAtTrade;
-            existing.PriceThb = transaction.PriceThb;
-            existing.FeeForeign = transaction.FeeForeign;
-            existing.FeeThb = transaction.FeeThb;
-            existing.Note = transaction.Note;
-
-            return Clone(existing);
+            return null;
         }
+
+        existing.Date = transaction.Date;
+        existing.Ticker = NormalizeTicker(transaction.Ticker);
+        existing.Type = transaction.Type;
+        existing.Quantity = transaction.Quantity;
+        existing.PriceForeign = transaction.PriceForeign;
+        existing.RateAtTrade = transaction.RateAtTrade;
+        existing.PriceThb = transaction.PriceThb;
+        existing.FeeForeign = transaction.FeeForeign;
+        existing.FeeThb = transaction.FeeThb;
+        existing.Note = transaction.Note;
+
+        _dbContext.SaveChanges();
+        return existing;
     }
 
     public bool Delete(int id)
     {
-        lock (_lock)
+        var existing = _dbContext.StockTransactions.FirstOrDefault(x => x.Id == id);
+        if (existing is null)
         {
-            var existing = _transactions.FirstOrDefault(x => x.Id == id);
-            if (existing is null)
-            {
-                return false;
-            }
-
-            _transactions.Remove(existing);
-            return true;
+            return false;
         }
+
+        _dbContext.StockTransactions.Remove(existing);
+        _dbContext.SaveChanges();
+        return true;
     }
 
     private static void Validate(StockTransaction transaction)
@@ -103,23 +108,5 @@ public class StockTransactionService : IStockTransactionService
     private static string NormalizeTicker(string? ticker)
     {
         return string.IsNullOrWhiteSpace(ticker) ? string.Empty : ticker.Trim().ToUpperInvariant();
-    }
-
-    private static StockTransaction Clone(StockTransaction transaction)
-    {
-        return new StockTransaction
-        {
-            Id = transaction.Id,
-            Date = transaction.Date,
-            Ticker = transaction.Ticker,
-            Type = transaction.Type,
-            Quantity = transaction.Quantity,
-            PriceForeign = transaction.PriceForeign,
-            RateAtTrade = transaction.RateAtTrade,
-            PriceThb = transaction.PriceThb,
-            FeeForeign = transaction.FeeForeign,
-            FeeThb = transaction.FeeThb,
-            Note = transaction.Note
-        };
     }
 }

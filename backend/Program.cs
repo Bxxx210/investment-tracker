@@ -9,9 +9,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         ?? "Data Source=investment.db"));
 
 builder.Services.AddControllers();
-builder.Services.AddSingleton<backend.Services.IExchangeTransactionService, backend.Services.ExchangeTransactionService>();
-builder.Services.AddSingleton<backend.Services.IStockTransactionService, backend.Services.StockTransactionService>();
-builder.Services.AddSingleton<backend.Services.ITaxSummaryService, backend.Services.TaxSummaryService>();
+builder.Services.AddScoped<backend.Services.IExchangeTransactionService, backend.Services.ExchangeTransactionService>();
+builder.Services.AddScoped<backend.Services.IStockTransactionService, backend.Services.StockTransactionService>();
+builder.Services.AddScoped<backend.Services.ITaxSummaryService, backend.Services.TaxSummaryService>();
 // เปิดใช้งาน OpenAPI สำหรับ dev
 builder.Services.AddOpenApi();
 

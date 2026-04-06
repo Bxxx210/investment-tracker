@@ -1,4 +1,6 @@
+using backend.Data;
 using backend.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services;
 
@@ -13,93 +15,35 @@ public interface ITaxSummaryService
 
 public class TaxSummaryService : ITaxSummaryService
 {
-    private readonly List<TaxSummary> _summaries = [];
-    private readonly object _lock = new();
-    private int _nextId = 1;
+    private readonly ApplicationDbContext _dbContext;
+
+    public TaxSummaryService(ApplicationDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
 
     public IEnumerable<TaxSummary> GetAll()
     {
-        lock (_lock)
-        {
-            return _summaries
-                .OrderByDescending(x => x.Year)
-                .ThenBy(x => x.Id)
-                .Select(Clone)
-                .ToArray();
-        }
+        return _dbContext.TaxSummaries
+            .AsNoTracking()
+            .OrderByDescending(x => x.Year)
+            .ThenBy(x => x.Id)
+            .ToArray();
     }
 
     public TaxSummary? GetById(int id)
     {
-        lock (_lock)
-        {
-            var summary = _summaries.FirstOrDefault(x => x.Id == id);
-            return summary is null ? null : Clone(summary);
-        }
+        return _dbContext.TaxSummaries
+            .AsNoTracking()
+            .FirstOrDefault(x => x.Id == id);
     }
 
     public TaxSummary Create(TaxSummary summary)
     {
         Validate(summary);
 
-        lock (_lock)
+        var created = new TaxSummary
         {
-            var created = Clone(summary);
-            created.Id = _nextId++;
-            _summaries.Add(created);
-            return Clone(created);
-        }
-    }
-
-    public TaxSummary? Update(int id, TaxSummary summary)
-    {
-        Validate(summary);
-
-        lock (_lock)
-        {
-            var existing = _summaries.FirstOrDefault(x => x.Id == id);
-            if (existing is null)
-            {
-                return null;
-            }
-
-            existing.Year = summary.Year;
-            existing.TotalIncomeThb = summary.TotalIncomeThb;
-            existing.TotalCostThb = summary.TotalCostThb;
-            existing.TotalFeeThb = summary.TotalFeeThb;
-            existing.NetProfitThb = summary.NetProfitThb;
-            existing.TaxRate = summary.TaxRate;
-            existing.TaxAmount = summary.TaxAmount;
-
-            return Clone(existing);
-        }
-    }
-
-    public bool Delete(int id)
-    {
-        lock (_lock)
-        {
-            var existing = _summaries.FirstOrDefault(x => x.Id == id);
-            if (existing is null)
-            {
-                return false;
-            }
-
-            _summaries.Remove(existing);
-            return true;
-        }
-    }
-
-    private static void Validate(TaxSummary summary)
-    {
-        ArgumentNullException.ThrowIfNull(summary);
-    }
-
-    private static TaxSummary Clone(TaxSummary summary)
-    {
-        return new TaxSummary
-        {
-            Id = summary.Id,
             Year = summary.Year,
             TotalIncomeThb = summary.TotalIncomeThb,
             TotalCostThb = summary.TotalCostThb,
@@ -108,5 +52,49 @@ public class TaxSummaryService : ITaxSummaryService
             TaxRate = summary.TaxRate,
             TaxAmount = summary.TaxAmount
         };
+
+        _dbContext.TaxSummaries.Add(created);
+        _dbContext.SaveChanges();
+        return created;
+    }
+
+    public TaxSummary? Update(int id, TaxSummary summary)
+    {
+        Validate(summary);
+
+        var existing = _dbContext.TaxSummaries.FirstOrDefault(x => x.Id == id);
+        if (existing is null)
+        {
+            return null;
+        }
+
+        existing.Year = summary.Year;
+        existing.TotalIncomeThb = summary.TotalIncomeThb;
+        existing.TotalCostThb = summary.TotalCostThb;
+        existing.TotalFeeThb = summary.TotalFeeThb;
+        existing.NetProfitThb = summary.NetProfitThb;
+        existing.TaxRate = summary.TaxRate;
+        existing.TaxAmount = summary.TaxAmount;
+
+        _dbContext.SaveChanges();
+        return existing;
+    }
+
+    public bool Delete(int id)
+    {
+        var existing = _dbContext.TaxSummaries.FirstOrDefault(x => x.Id == id);
+        if (existing is null)
+        {
+            return false;
+        }
+
+        _dbContext.TaxSummaries.Remove(existing);
+        _dbContext.SaveChanges();
+        return true;
+    }
+
+    private static void Validate(TaxSummary summary)
+    {
+        ArgumentNullException.ThrowIfNull(summary);
     }
 }
