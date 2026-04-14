@@ -18,6 +18,11 @@ public class ApplicationDbContext : DbContext
                 ? ExchangeType.SellUsd
                 : ExchangeType.BuyUsd);
 
+    private static readonly ValueConverter<StockTransactionType, string> StockTransactionTypeConverter =
+        new(
+            value => ConvertStockTransactionTypeToString(value),
+            value => ConvertStringToStockTransactionType(value));
+
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {
@@ -64,7 +69,9 @@ public class ApplicationDbContext : DbContext
                 .HasColumnName("executed_at")
                 .HasConversion(UtcDateTimeConverter);
             entity.Property(x => x.Ticker).HasColumnName("ticker");
-            entity.Property(x => x.Type).HasColumnName("type").HasConversion<int>();
+            entity.Property(x => x.Type)
+                .HasColumnName("type")
+                .HasConversion(StockTransactionTypeConverter);
             entity.Property(x => x.Quantity).HasColumnName("quantity");
             entity.Property(x => x.PriceUsd).HasColumnName("price_usd");
             entity.Property(x => x.FeeUsd).HasColumnName("fee_usd");
@@ -129,6 +136,30 @@ public class ApplicationDbContext : DbContext
             DateTimeKind.Local => DateTime.SpecifyKind(value, DateTimeKind.Utc),
             DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
             _ => value
+        };
+    }
+
+    private static string ConvertStockTransactionTypeToString(StockTransactionType value)
+    {
+        return value switch
+        {
+            StockTransactionType.Buy => "buy",
+            StockTransactionType.Sell => "sell",
+            StockTransactionType.Dividend => "dividend",
+            StockTransactionType.Withdrawal => "withdrawal",
+            _ => "buy"
+        };
+    }
+
+    private static StockTransactionType ConvertStringToStockTransactionType(string value)
+    {
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "buy" => StockTransactionType.Buy,
+            "sell" => StockTransactionType.Sell,
+            "dividend" => StockTransactionType.Dividend,
+            "withdrawal" => StockTransactionType.Withdrawal,
+            _ => StockTransactionType.Buy
         };
     }
 }

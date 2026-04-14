@@ -17,6 +17,7 @@ type RealizedGainItem = {
 type InvestmentSummary = {
   year: number;
   totalInvestedThb: number;
+  netInvestedThb: number;
   totalCurrentValueThb: number;
   totalProfitLossThb: number;
   totalProfitLossPercent: number;
@@ -184,20 +185,26 @@ export default function SummaryChatClient() {
                 {summaryCard({
                   label: "เงินลงทุนรวม",
                   value: `฿${formatMoney(summary.totalInvestedThb)}`,
-                  subtext: `ปี ${summary.year} - เงินต้นทั้งหมดที่เข้าสู่พอร์ต`,
+                  subtext: `ปี ${summary.year} - เงินต้นทั้งหมดที่ใส่เข้าระบบ`,
                   tone: "cyan",
+                })}
+                {summaryCard({
+                  label: "เงินลงทุนคงเหลือ",
+                  value: `฿${formatMoney(summary.netInvestedThb)}`,
+                  subtext: "หักรายการขายแล้ว เงินต้นที่ยังค้างในพอร์ต",
+                  tone: "emerald",
                 })}
                 {summaryCard({
                   label: "มูลค่าปัจจุบัน",
                   value: `฿${formatMoney(summary.totalCurrentValueThb)}`,
-                  subtext: "มูลค่าตามบัญชีจากธุรกรรมที่บันทึกไว้",
-                  tone: "emerald",
+                  subtext: "เงินสดที่รับกลับมา + มูลค่าตามบัญชีของรายการที่ยังคงอยู่",
+                  tone: "amber",
                 })}
                 {summaryCard({
                   label: "กำไร/ขาดทุน",
                   value: `฿${formatMoney(summary.totalProfitLossThb)} (${formatPercent(summary.totalProfitLossPercent)}%)`,
                   subtext: "คำนวณจากมูลค่าปัจจุบันลบเงินลงทุนรวม",
-                  tone: summary.totalProfitLossThb >= 0 ? "amber" : "rose",
+                  tone: summary.totalProfitLossThb >= 0 ? "emerald" : "rose",
                 })}
                 {summaryCard({
                   label: "ภาษีประมาณการ",

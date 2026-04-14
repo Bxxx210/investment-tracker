@@ -44,6 +44,7 @@ public class ExchangeTransactionService : IExchangeTransactionService
         NormalizeRates(transaction);
         var created = new ExchangeTransaction
         {
+            ExchangeType = transaction.ExchangeType,
             Date = transaction.Date,
             ThbAmount = transaction.ThbAmount,
             ForeignAmount = transaction.ForeignAmount,
@@ -70,6 +71,7 @@ public class ExchangeTransactionService : IExchangeTransactionService
         }
 
         NormalizeRates(transaction);
+        existing.ExchangeType = transaction.ExchangeType;
         existing.Date = transaction.Date;
         existing.ThbAmount = transaction.ThbAmount;
         existing.ForeignAmount = transaction.ForeignAmount;

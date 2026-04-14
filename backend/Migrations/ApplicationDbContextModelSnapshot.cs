@@ -107,8 +107,8 @@ namespace backend.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("Type")
-                        .HasColumnType("INTEGER");
+                    b.Property<backend.Models.StockTransactionType>("Type")
+                        .HasColumnType("TEXT");
 
                     b.Property<decimal>("TotalCostUsd")
                         .HasColumnType("TEXT");

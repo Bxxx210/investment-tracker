@@ -55,6 +55,7 @@ type ExchangeSummaryInput = Pick<
 type NormalizedStockData = {
   executedAt: string;
   ticker: string;
+  type: "buy" | "sell";
   quantity: number;
   priceUsd: number;
   feeUsd: number;
@@ -67,7 +68,7 @@ type NormalizedStockData = {
 
 type StockSummaryInput = Pick<
   NormalizedStockData,
-  "executedAt" | "ticker" | "quantity" | "priceUsd" | "feeUsd" | "vatUsd" | "totalCostUsd" | "rateAtTrade" | "priceThb"
+  "executedAt" | "ticker" | "type" | "quantity" | "priceUsd" | "feeUsd" | "vatUsd" | "totalCostUsd" | "rateAtTrade" | "priceThb"
 >;
 
 type GeminiGenerateContentResponse = {
@@ -100,7 +101,7 @@ type ExchangeHistoryItem = {
 };
 
 type StockHistoryItem = {
-  kind: "stock_buy" | "stock_sell";
+  kind: "stock_buy" | "stock_sell" | "stock_dividend" | "stock_withdrawal";
   id: number;
   createdAt: string;
   title: string;
@@ -252,10 +253,16 @@ function buildExchangeSummary(data: ExchangeSummaryInput) {
 }
 
 function buildStockSummary(
-  intent: "stock_buy" | "stock_sell",
+  intent: "stock_buy" | "stock_sell" | "stock_dividend" | "stock_withdrawal",
   data: StockSummaryInput
 ) {
-  const verb = intent === "stock_buy" ? "ซื้อ" : "ขาย";
+  const verb = intent === "stock_buy"
+    ? "ซื้อ"
+    : intent === "stock_sell"
+      ? "ขาย"
+      : intent === "stock_dividend"
+        ? "ปันผล"
+        : "ถอน";
   return [
     "ยืนยันบันทึกนี้ไหมครับ?",
     `📈 ${verb}หุ้น: ${data.ticker}`,
@@ -458,6 +465,7 @@ function normalizeStockAnalysis(intent: "stock_buy" | "stock_sell", analysis: Ch
     data: {
       executedAt,
       ticker,
+      type: intent === "stock_buy" ? "buy" : "sell",
       quantity,
       priceUsd,
       feeUsd,
@@ -473,6 +481,7 @@ function normalizeStockAnalysis(intent: "stock_buy" | "stock_sell", analysis: Ch
     summary: buildStockSummary(intent, {
       executedAt,
       ticker,
+      type: intent === "stock_buy" ? "buy" : "sell",
       quantity,
       priceUsd,
       feeUsd,
@@ -571,9 +580,14 @@ function convertStockHistoryItem(
       transaction.created
   );
   const ticker = String(transaction.ticker ?? transaction.Ticker ?? "");
-  const type = Number(transaction.type ?? transaction.Type ?? 1) === 1
-    ? "stock_buy"
-    : "stock_sell";
+  const rawType = String(transaction.type ?? transaction.Type ?? "buy").toLowerCase();
+  const type = rawType === "2" || rawType === "sell"
+    ? "stock_sell"
+    : rawType === "3" || rawType === "dividend"
+      ? "stock_dividend"
+      : rawType === "4" || rawType === "withdrawal"
+        ? "stock_withdrawal"
+        : "stock_buy";
   const quantity = Number(transaction.quantity ?? transaction.Quantity ?? 0);
   const priceUsd = Number(transaction.priceUsd ?? transaction.PriceUsd ?? 0);
   const feeUsd = Number(transaction.feeUsd ?? transaction.FeeUsd ?? 0);
@@ -594,10 +608,21 @@ function convertStockHistoryItem(
     kind: type,
     id,
     createdAt: createdAt ?? normalizeDateTime(executedAt),
-    title: type === "stock_buy" ? "ซื้อหุ้น" : "ขายหุ้น",
+    title:
+      type === "stock_buy"
+        ? "ซื้อหุ้น"
+        : type === "stock_sell"
+          ? "ขายหุ้น"
+          : type === "stock_dividend"
+            ? "ปันผล"
+            : "ถอนเงิน",
     lines: buildStockSummary(type, {
       executedAt,
       ticker,
+      type:
+        type === "stock_sell"
+          ? "sell"
+          : "buy",
       quantity,
       priceUsd,
       feeUsd,
@@ -655,6 +680,7 @@ async function saveExchange(
     body: JSON.stringify({
       createdAt,
       date: data.date,
+      type: data.exchangeType,
       exchangeType: data.exchangeType,
       thbAmount: data.thbAmount,
       foreignAmount: data.foreignAmount,
@@ -688,7 +714,7 @@ async function saveStock(
       createdAt,
       executedAt: data.executedAt,
       ticker: data.ticker,
-      type: intent === "stock_buy" ? 1 : 2,
+      type: data.type,
       quantity: data.quantity,
       priceUsd: data.priceUsd,
       feeUsd: data.feeUsd,

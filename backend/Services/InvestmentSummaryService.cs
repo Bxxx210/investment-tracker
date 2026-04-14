@@ -41,6 +41,7 @@ public class InvestmentSummaryService : IInvestmentSummaryService
         var realizedGains = new List<RealizedGainItem>();
 
         decimal totalInvestedThb = 0m;
+        decimal netInvestedThb = 0m;
         decimal cashThb = 0m;
 
         foreach (var entry in timeline)
@@ -54,6 +55,7 @@ public class InvestmentSummaryService : IInvestmentSummaryService
                     realizedGains,
                     warnings,
                     ref totalInvestedThb,
+                    ref netInvestedThb,
                     ref cashThb);
                 continue;
             }
@@ -68,6 +70,7 @@ public class InvestmentSummaryService : IInvestmentSummaryService
                     realizedGains,
                     warnings,
                     ref totalInvestedThb,
+                    ref netInvestedThb,
                     ref cashThb);
             }
         }
@@ -92,6 +95,7 @@ public class InvestmentSummaryService : IInvestmentSummaryService
         {
             Year = targetYear,
             TotalInvestedThb = totalInvestedThb,
+            NetInvestedThb = netInvestedThb,
             TotalCurrentValueThb = totalCurrentValueThb,
             TotalProfitLossThb = totalProfitLossThb,
             TotalProfitLossPercent = totalProfitLossPercent,
@@ -136,6 +140,7 @@ public class InvestmentSummaryService : IInvestmentSummaryService
         List<RealizedGainItem> realizedGains,
         List<string> warnings,
         ref decimal totalInvestedThb,
+        ref decimal netInvestedThb,
         ref decimal cashThb)
     {
         if (transaction.ExchangeType == ExchangeType.BuyUsd)
@@ -148,6 +153,7 @@ public class InvestmentSummaryService : IInvestmentSummaryService
 
             usdLots.Enqueue(new Lot(transaction.ForeignAmount, transaction.ThbAmount));
             totalInvestedThb += transaction.ThbAmount;
+            netInvestedThb += transaction.ThbAmount;
             return;
         }
 
@@ -165,6 +171,7 @@ public class InvestmentSummaryService : IInvestmentSummaryService
             warnings,
             $"USD แลกกลับ #{transaction.Id}");
 
+        netInvestedThb -= consumedCostBasisThb;
         cashThb += proceedsThb;
         var gainThb = proceedsThb - consumedCostBasisThb;
 
@@ -193,6 +200,7 @@ public class InvestmentSummaryService : IInvestmentSummaryService
         List<RealizedGainItem> realizedGains,
         List<string> warnings,
         ref decimal totalInvestedThb,
+        ref decimal netInvestedThb,
         ref decimal cashThb)
     {
         var ticker = transaction.Ticker.Trim().ToUpperInvariant();
@@ -207,69 +215,87 @@ public class InvestmentSummaryService : IInvestmentSummaryService
             ? transaction.TotalCostUsd
             : (transaction.PriceUsd * transaction.Quantity) + transaction.FeeUsd + transaction.VatUsd;
 
-        if (transaction.Type == StockTransactionType.Buy)
+        switch (transaction.Type)
         {
-        var basisFromUsdLots = ConsumeFromLots(
-                usdLots,
-                totalCostUsd,
-                warnings,
-                $"USD สำหรับซื้อหุ้น {ticker} #{transaction.Id}",
-                allowPartial: true);
-
-            if (basisFromUsdLots < totalCostUsd)
+            case StockTransactionType.Buy:
             {
-                warnings.Add($"รายการซื้อหุ้น #{transaction.Id} ใช้ USD สำหรับต้นทุนไม่ครบทั้งหมด");
-            }
+                var basisFromUsdLots = ConsumeFromLots(
+                    usdLots,
+                    totalCostUsd,
+                    warnings,
+                    $"USD สำหรับซื้อหุ้น {ticker} #{transaction.Id}",
+                    allowPartial: true);
 
-            var fallbackCostBasisThb = ResolveFallbackStockBuyCostBasis(transaction, warnings);
-            var totalCostBasisThb = basisFromUsdLots + fallbackCostBasisThb;
+                if (basisFromUsdLots < totalCostUsd)
+                {
+                    warnings.Add($"รายการซื้อหุ้น #{transaction.Id} ใช้ USD สำหรับต้นทุนไม่ครบทั้งหมด");
+                }
 
-            if (totalCostBasisThb <= 0)
-            {
-                warnings.Add($"รายการซื้อหุ้น #{transaction.Id} ไม่สามารถคำนวณต้นทุน THB ได้");
+                var fallbackCostBasisThb = ResolveFallbackStockBuyCostBasis(transaction, warnings);
+                var totalCostBasisThb = basisFromUsdLots + fallbackCostBasisThb;
+
+                if (totalCostBasisThb <= 0)
+                {
+                    warnings.Add($"รายการซื้อหุ้น #{transaction.Id} ไม่สามารถคำนวณต้นทุน THB ได้");
+                    return;
+                }
+
+                stockLots.Enqueue(new Lot(transaction.Quantity, totalCostBasisThb));
+
+                if (fallbackCostBasisThb > 0)
+                {
+                    totalInvestedThb += fallbackCostBasisThb;
+                    netInvestedThb += fallbackCostBasisThb;
+                }
+
                 return;
             }
-
-            stockLots.Enqueue(new Lot(transaction.Quantity, totalCostBasisThb));
-
-            if (fallbackCostBasisThb > 0)
+            case StockTransactionType.Sell:
             {
-                totalInvestedThb += fallbackCostBasisThb;
+                var proceedsThb = ResolveStockSellProceedsThb(transaction, warnings);
+                if (proceedsThb is null)
+                {
+                    warnings.Add($"รายการขายหุ้น #{transaction.Id} ไม่สามารถคำนวณมูลค่า THB ได้");
+                    return;
+                }
+
+                var consumedCostBasisThb = ConsumeFromLots(
+                    stockLots,
+                    transaction.Quantity,
+                    warnings,
+                    $"หุ้น {ticker} #{transaction.Id}");
+
+                netInvestedThb -= consumedCostBasisThb;
+                cashThb += proceedsThb.Value;
+                var gainThb = proceedsThb.Value - consumedCostBasisThb;
+
+                if (transaction.ExecutedAt.Year == targetYear)
+                {
+                    realizedGains.Add(new RealizedGainItem
+                    {
+                        SourceType = "stock_sell",
+                        TransactionId = transaction.Id,
+                        ClosedAt = transaction.ExecutedAt,
+                        Label = $"ขายหุ้น {ticker}",
+                        Quantity = transaction.Quantity,
+                        ProceedsThb = proceedsThb.Value,
+                        CostBasisThb = consumedCostBasisThb,
+                        GainThb = gainThb,
+                        Note = transaction.Note
+                    });
+                }
+
+                return;
             }
-
-            return;
-        }
-
-        var proceedsThb = ResolveStockSellProceedsThb(transaction, warnings);
-        if (proceedsThb is null)
-        {
-            warnings.Add($"รายการขายหุ้น #{transaction.Id} ไม่สามารถคำนวณมูลค่า THB ได้");
-            return;
-        }
-
-        var consumedCostBasisThb = ConsumeFromLots(
-            stockLots,
-            transaction.Quantity,
-            warnings,
-            $"หุ้น {ticker} #{transaction.Id}");
-
-        cashThb += proceedsThb.Value;
-        var gainThb = proceedsThb.Value - consumedCostBasisThb;
-
-        if (transaction.ExecutedAt.Year == targetYear)
-        {
-            realizedGains.Add(new RealizedGainItem
-            {
-                SourceType = "stock_sell",
-                TransactionId = transaction.Id,
-                ClosedAt = transaction.ExecutedAt,
-                Label = $"ขายหุ้น {ticker}",
-                Quantity = transaction.Quantity,
-                ProceedsThb = proceedsThb.Value,
-                CostBasisThb = consumedCostBasisThb,
-                GainThb = gainThb,
-                Note = transaction.Note
-            });
+            case StockTransactionType.Dividend:
+                warnings.Add($"รายการหุ้น #{transaction.Id} เป็น dividend แต่ schema ปัจจุบันยังไม่มีช่องทางคำนวณแยกอย่างถูกต้อง");
+                return;
+            case StockTransactionType.Withdrawal:
+                warnings.Add($"รายการหุ้น #{transaction.Id} เป็น withdrawal แต่ควรย้ายไปตาราง cash transactions ในอนาคต");
+                return;
+            default:
+                warnings.Add($"รายการหุ้น #{transaction.Id} มี type ที่ไม่รองรับ");
+                return;
         }
     }
 

@@ -41,7 +41,7 @@ type ChatHistoryItem =
       lines: string[];
     }
   | {
-      kind: "stock_buy" | "stock_sell";
+      kind: "stock_buy" | "stock_sell" | "stock_dividend" | "stock_withdrawal";
       id: number;
       createdAt: string;
       title: string;

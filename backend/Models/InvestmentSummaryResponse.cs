@@ -6,6 +6,8 @@ public sealed class InvestmentSummaryResponse
 
     public decimal TotalInvestedThb { get; set; }
 
+    public decimal NetInvestedThb { get; set; }
+
     public decimal TotalCurrentValueThb { get; set; }
 
     public decimal TotalProfitLossThb { get; set; }
