@@ -14,6 +14,17 @@ type RealizedGainItem = {
   note?: string | null;
 };
 
+type SummaryTransactionItem = {
+  id: string;
+  date: string;
+  category: "exchange" | "stock";
+  type: string;
+  asset: string;
+  amount: string;
+  realizedGainThb: number | null;
+  note: string | null;
+};
+
 type InvestmentSummary = {
   year: number;
   totalInvestedThb: number;
@@ -25,16 +36,17 @@ type InvestmentSummary = {
   estimatedTaxPayable: number;
   realizedGains: RealizedGainItem[];
   warnings: string[];
+  transactions: SummaryTransactionItem[];
 };
 
-type ChatResponse = {
+type ErrorResponse = {
   message?: string;
   detail?: unknown;
 };
 
 async function readErrorMessage(response: Response) {
   try {
-    const data = (await response.json()) as ChatResponse | undefined;
+    const data = (await response.json()) as ErrorResponse | undefined;
     if (data?.detail && typeof data.detail === "object") {
       return `${data.message ?? "ไม่สามารถทำรายการได้"}: ${JSON.stringify(
         data.detail
@@ -107,6 +119,18 @@ function summaryCard({
   );
 }
 
+function transactionTone(type: string) {
+  if (type.startsWith("Sell")) {
+    return "border-rose-400/20 bg-rose-400/10 text-rose-50";
+  }
+
+  if (type.startsWith("Buy")) {
+    return "border-cyan-400/20 bg-cyan-400/10 text-cyan-50";
+  }
+
+  return "border-amber-400/20 bg-amber-400/10 text-amber-50";
+}
+
 export default function SummaryChatClient() {
   const [summary, setSummary] = useState<InvestmentSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -144,9 +168,9 @@ export default function SummaryChatClient() {
   }, []);
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.94),rgba(2,6,23,0.98))] shadow-2xl shadow-cyan-950/20 backdrop-blur-xl">
-        <div className="border-b border-white/10 px-4 py-4 sm:px-6">
+        <div className="border-b border-white/10 px-4 py-5 sm:px-6">
           <p className="text-xs uppercase tracking-[0.35em] text-cyan-300/80">
             Summary
           </p>
@@ -154,25 +178,29 @@ export default function SummaryChatClient() {
             สรุปพอร์ตและภาษี
           </h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300 sm:text-base">
-            สรุปนี้คำนวณจากธุรกรรมที่บันทึกไว้ด้วย FIFO และแสดงมูลค่าแบบบัญชี
-            ไม่ใช่ราคาตลาดจริง เพราะ schema ปัจจุบันยังไม่มี market price
+            หน้านี้แยกส่วนสรุปภาพรวมออกจากประวัติธุรกรรมชัดเจน และยังใช้ FIFO
+            กับ timezone เดิมตาม backend อยู่เหมือนเดิม
           </p>
         </div>
 
-        <div className="space-y-4 px-4 py-4 sm:px-6">
+        <div className="space-y-5 px-4 py-4 sm:px-6">
           {isLoading ? (
-            <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-5 text-sm text-slate-300">
-              กำลังคำนวณสรุปการลงทุน...
+            <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-slate-300">
+              กำลังโหลดข้อมูลสรุปและประวัติธุรกรรม...
             </div>
           ) : error ? (
-            <div className="rounded-3xl border border-rose-400/20 bg-rose-400/10 px-4 py-5 text-sm text-rose-50">
+            <div className="rounded-3xl border border-rose-400/20 bg-rose-400/10 px-4 py-6 text-sm text-rose-50">
               {error}
             </div>
-          ) : summary ? (
+          ) : !summary ? (
+            <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 px-4 py-6 text-sm text-slate-400">
+              ไม่พบข้อมูลสำหรับสรุปการลงทุน
+            </div>
+          ) : (
             <>
               {summary.warnings.length > 0 ? (
                 <div className="rounded-[1.6rem] border border-amber-400/20 bg-amber-400/10 px-4 py-4 text-sm text-amber-50">
-                  <p className="font-semibold">หมายเหตุ</p>
+                  <p className="font-semibold">หมายเหตุจากการคำนวณ</p>
                   <ul className="mt-2 list-disc space-y-1 pl-5">
                     {summary.warnings.map((warning) => (
                       <li key={warning}>{warning}</li>
@@ -181,105 +209,184 @@ export default function SummaryChatClient() {
                 </div>
               ) : null}
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {summaryCard({
-                  label: "เงินลงทุนรวม",
-                  value: `฿${formatMoney(summary.totalInvestedThb)}`,
-                  subtext: `ปี ${summary.year} - เงินต้นทั้งหมดที่ใส่เข้าระบบ`,
-                  tone: "cyan",
-                })}
-                {summaryCard({
-                  label: "เงินลงทุนคงเหลือ",
-                  value: `฿${formatMoney(summary.netInvestedThb)}`,
-                  subtext: "หักรายการขายแล้ว เงินต้นที่ยังค้างในพอร์ต",
-                  tone: "emerald",
-                })}
-                {summaryCard({
-                  label: "มูลค่าปัจจุบัน",
-                  value: `฿${formatMoney(summary.totalCurrentValueThb)}`,
-                  subtext: "เงินสดที่รับกลับมา + มูลค่าตามบัญชีของรายการที่ยังคงอยู่",
-                  tone: "amber",
-                })}
-                {summaryCard({
-                  label: "กำไร/ขาดทุน",
-                  value: `฿${formatMoney(summary.totalProfitLossThb)} (${formatPercent(summary.totalProfitLossPercent)}%)`,
-                  subtext: "คำนวณจากมูลค่าปัจจุบันลบเงินลงทุนรวม",
-                  tone: summary.totalProfitLossThb >= 0 ? "emerald" : "rose",
-                })}
-                {summaryCard({
-                  label: "ภาษีประมาณการ",
-                  value: `฿${formatMoney(summary.estimatedTaxPayable)}`,
-                  subtext: `Taxable gain ฿${formatMoney(summary.taxableGainThb)}`,
-                  tone: "rose",
-                })}
-              </div>
+              <section className="space-y-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    Overview
+                  </p>
+                  <h4 className="mt-1 text-lg font-semibold text-white">
+                    Summary Overview
+                  </h4>
+                </div>
 
-              <div className="rounded-[1.6rem] border border-white/10 bg-white/5 px-4 py-4">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4">
+                  {summaryCard({
+                    label: "เงินลงทุนรวม",
+                    value: `฿${formatMoney(summary.totalInvestedThb)}`,
+                    subtext: `ปี ${summary.year} - เงินต้นทั้งหมดที่ใส่เข้าระบบ`,
+                    tone: "cyan",
+                  })}
+                  {summaryCard({
+                    label: "เงินลงทุนคงเหลือ",
+                    value: `฿${formatMoney(summary.netInvestedThb)}`,
+                    subtext: "Net Invested หลังหักต้นทุนที่ขายออกแล้ว",
+                    tone: "emerald",
+                  })}
+                  {summaryCard({
+                    label: "มูลค่าปัจจุบัน",
+                    value: `฿${formatMoney(summary.totalCurrentValueThb)}`,
+                    subtext: "เงินสดรับกลับ + มูลค่าตามบัญชีของสินทรัพย์ที่เหลือ",
+                    tone: "amber",
+                  })}
+                  {summaryCard({
+                    label: "กำไร/ขาดทุน",
+                    value: `฿${formatMoney(summary.totalProfitLossThb)} (${formatPercent(summary.totalProfitLossPercent)}%)`,
+                    subtext: "คำนวณจากมูลค่าปัจจุบันเทียบกับเงินลงทุนรวม",
+                    tone: summary.totalProfitLossThb >= 0 ? "emerald" : "rose",
+                  })}
+                  {summaryCard({
+                    label: "ภาษีประมาณการ",
+                    value: `฿${formatMoney(summary.estimatedTaxPayable)}`,
+                    subtext: `Realized gain ปีนี้ ฿${formatMoney(summary.taxableGainThb)}`,
+                    tone: "rose",
+                  })}
+                </div>
+              </section>
+
+              <section className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                      Realized Gains
+                      Details
                     </p>
                     <h4 className="mt-1 text-lg font-semibold text-white">
-                      รายการที่ถูกใช้คำนวณภาษี
+                      Transaction History
                     </h4>
                   </div>
                   <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
-                    {summary.realizedGains.length} รายการ
+                    {summary.transactions.length} รายการ
                   </span>
                 </div>
 
-                <div className="mt-4 space-y-3">
-                  {summary.realizedGains.length === 0 ? (
-                    <div className="rounded-3xl border border-dashed border-white/10 bg-slate-900/70 px-4 py-5 text-sm text-slate-400">
-                      ยังไม่มีรายการขายที่ทำให้เกิดกำไร/ขาดทุนในปีนี้
-                    </div>
-                  ) : (
-                    summary.realizedGains.map((item) => (
-                      <article
-                        key={`${item.sourceType}-${item.transactionId}`}
-                        className="rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-4 shadow-lg shadow-slate-950/20"
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-cyan-400/15 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-cyan-100">
-                            {item.label}
-                          </span>
-                          <span className="text-xs text-slate-400">
-                            #{item.transactionId}
-                          </span>
-                          <span
-                            className={[
-                              "rounded-full px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em]",
-                              item.gainThb >= 0
-                                ? "bg-emerald-400/15 text-emerald-100"
-                                : "bg-rose-400/15 text-rose-100",
-                            ].join(" ")}
-                          >
-                            {item.gainThb >= 0 ? "กำไร" : "ขาดทุน"}
-                          </span>
-                        </div>
+                {summary.transactions.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-white/10 bg-slate-900/70 px-4 py-6 text-sm text-slate-400">
+                    ยังไม่มีธุรกรรมที่นำมาใช้ในหน้า summary
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-3 lg:hidden">
+                      {summary.transactions.map((transaction) => (
+                        <article
+                          key={transaction.id}
+                          className="rounded-[1.6rem] border border-white/10 bg-slate-950/60 px-4 py-4 shadow-lg shadow-slate-950/20"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={[
+                                "rounded-full border px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em]",
+                                transactionTone(transaction.type),
+                              ].join(" ")}
+                            >
+                              {transaction.type}
+                            </span>
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-slate-300">
+                              {transaction.category}
+                            </span>
+                          </div>
 
-                        <div className="mt-3 grid gap-2 text-sm text-slate-200 sm:grid-cols-2">
-                          <p>วันที่ปิด: {formatDateTime(item.closedAt)}</p>
-                          <p>จำนวน: {item.quantity.toLocaleString("th-TH")}</p>
-                          <p>ต้นทุน FIFO: ฿{formatMoney(item.costBasisThb)}</p>
-                          <p>มูลค่าขาย: ฿{formatMoney(item.proceedsThb)}</p>
-                          <p
-                            className={
-                              item.gainThb >= 0 ? "text-emerald-300" : "text-rose-300"
-                            }
-                          >
-                            กำไร/ขาดทุน: ฿{formatMoney(item.gainThb)}
-                          </p>
-                          {item.note ? <p>หมายเหตุ: {item.note}</p> : null}
-                        </div>
-                      </article>
-                    ))
-                  )}
-                </div>
-              </div>
+                          <div className="mt-3 grid gap-2 text-sm text-slate-200">
+                            <p>วันที่: {formatDateTime(transaction.date)}</p>
+                            <p>สินทรัพย์: {transaction.asset}</p>
+                            <p>จำนวน: {transaction.amount}</p>
+                            <p
+                              className={
+                                transaction.realizedGainThb === null
+                                  ? "text-slate-400"
+                                  : transaction.realizedGainThb >= 0
+                                    ? "text-emerald-300"
+                                    : "text-rose-300"
+                              }
+                            >
+                              Realized Gain:{" "}
+                              {transaction.realizedGainThb === null
+                                ? "-"
+                                : `฿${formatMoney(transaction.realizedGainThb)}`}
+                            </p>
+                            {transaction.note ? (
+                              <p className="text-slate-400">หมายเหตุ: {transaction.note}</p>
+                            ) : null}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+
+                    <div className="hidden overflow-hidden rounded-[1.6rem] border border-white/10 bg-slate-950/60 lg:block">
+                      <table className="min-w-full divide-y divide-white/10 text-sm text-slate-200">
+                        <thead className="bg-white/5 text-xs uppercase tracking-[0.22em] text-slate-400">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-medium">Date</th>
+                            <th className="px-4 py-3 text-left font-medium">Type</th>
+                            <th className="px-4 py-3 text-left font-medium">Asset</th>
+                            <th className="px-4 py-3 text-left font-medium">Amount</th>
+                            <th className="px-4 py-3 text-left font-medium">Realized Gain</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {summary.transactions.map((transaction) => (
+                            <tr key={transaction.id} className="hover:bg-white/[0.03]">
+                              <td className="px-4 py-3 align-top text-slate-300">
+                                {formatDateTime(transaction.date)}
+                              </td>
+                              <td className="px-4 py-3 align-top">
+                                <div className="flex flex-col gap-2">
+                                  <span
+                                    className={[
+                                      "inline-flex w-fit rounded-full border px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em]",
+                                      transactionTone(transaction.type),
+                                    ].join(" ")}
+                                  >
+                                    {transaction.type}
+                                  </span>
+                                  <span className="text-xs text-slate-500">
+                                    {transaction.category}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 align-top text-slate-100">
+                                <div>{transaction.asset}</div>
+                                {transaction.note ? (
+                                  <div className="mt-1 text-xs text-slate-500">
+                                    {transaction.note}
+                                  </div>
+                                ) : null}
+                              </td>
+                              <td className="px-4 py-3 align-top text-slate-300">
+                                {transaction.amount}
+                              </td>
+                              <td
+                                className={[
+                                  "px-4 py-3 align-top font-medium",
+                                  transaction.realizedGainThb === null
+                                    ? "text-slate-500"
+                                    : transaction.realizedGainThb >= 0
+                                      ? "text-emerald-300"
+                                      : "text-rose-300",
+                                ].join(" ")}
+                              >
+                                {transaction.realizedGainThb === null
+                                  ? "-"
+                                  : `฿${formatMoney(transaction.realizedGainThb)}`}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </section>
             </>
-          ) : null}
+          )}
         </div>
       </section>
     </div>
