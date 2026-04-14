@@ -646,12 +646,14 @@ async function loadChatHistory(): Promise<ChatHistoryItem[]> {
 async function saveExchange(
   data: NormalizedExchangeData
 ): Promise<Record<string, unknown>> {
+  const createdAt = new Date().toISOString();
   const response = await fetch(`${backendBaseUrl}/api/ExchangeTransactions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
+      createdAt,
       date: data.date,
       exchangeType: data.exchangeType,
       thbAmount: data.thbAmount,
@@ -676,12 +678,14 @@ async function saveStock(
   intent: "stock_buy" | "stock_sell",
   data: NormalizedStockData
 ): Promise<Record<string, unknown>> {
+  const createdAt = new Date().toISOString();
   const response = await fetch(`${backendBaseUrl}/api/StockTransactions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
+      createdAt,
       executedAt: data.executedAt,
       ticker: data.ticker,
       type: intent === "stock_buy" ? 1 : 2,

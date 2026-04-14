@@ -8,7 +8,7 @@ public class ApplicationDbContext : DbContext
 {
     private static readonly ValueConverter<DateTime, DateTime> UtcDateTimeConverter =
         new(
-            value => value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime(),
+            value => value.Kind == DateTimeKind.Utc ? value : DateTime.SpecifyKind(value, DateTimeKind.Utc),
             value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
 
     private static readonly ValueConverter<ExchangeType, string> ExchangeTypeConverter =
@@ -126,7 +126,7 @@ public class ApplicationDbContext : DbContext
         return value.Kind switch
         {
             DateTimeKind.Utc => value,
-            DateTimeKind.Local => value.ToUniversalTime(),
+            DateTimeKind.Local => DateTime.SpecifyKind(value, DateTimeKind.Utc),
             DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
             _ => value
         };

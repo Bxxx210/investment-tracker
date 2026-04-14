@@ -22,6 +22,7 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<backend.Services.IExchangeTransactionService, backend.Services.ExchangeTransactionService>();
 builder.Services.AddScoped<backend.Services.IStockTransactionService, backend.Services.StockTransactionService>();
 builder.Services.AddScoped<backend.Services.ITaxSummaryService, backend.Services.TaxSummaryService>();
+builder.Services.AddScoped<backend.Services.IInvestmentSummaryService, backend.Services.InvestmentSummaryService>();
 // เปิดใช้งาน OpenAPI สำหรับ dev
 builder.Services.AddOpenApi();
 

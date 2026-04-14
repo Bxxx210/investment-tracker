@@ -173,7 +173,7 @@ function formatThaiDateTime(value: string) {
     return value;
   }
 
-  const formatted = new Intl.DateTimeFormat("en-TH", {
+  const formatted = new Intl.DateTimeFormat("th-TH-u-ca-gregory", {
     timeZone: "Asia/Bangkok",
     day: "numeric",
     month: "short",
