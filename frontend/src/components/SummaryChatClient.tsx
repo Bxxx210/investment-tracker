@@ -25,6 +25,17 @@ type SummaryTransactionItem = {
   note: string | null;
 };
 
+type StockHoldingItem = {
+  ticker: string;
+  quantity: number;
+  averageCostThb: number;
+  currentValueThb: number;
+  unrealizedGainLossThb: number;
+  latestPriceUsd: number | null;
+  latestRateAtTrade: number | null;
+  status: "active" | "closed";
+};
+
 type InvestmentSummary = {
   year: number;
   totalInvestedThb: number;
@@ -36,6 +47,8 @@ type InvestmentSummary = {
   estimatedTaxPayable: number;
   realizedGains: RealizedGainItem[];
   warnings: string[];
+  holdings: StockHoldingItem[];
+  closedPositions: StockHoldingItem[];
   transactions: SummaryTransactionItem[];
 };
 
@@ -129,6 +142,10 @@ function transactionTone(type: string) {
   }
 
   return "border-amber-400/20 bg-amber-400/10 text-amber-50";
+}
+
+function holdingTone(value: number) {
+  return value >= 0 ? "text-emerald-300" : "text-rose-300";
 }
 
 export default function SummaryChatClient() {
@@ -251,6 +268,146 @@ export default function SummaryChatClient() {
                     tone: "rose",
                   })}
                 </div>
+              </section>
+
+              <section className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                      Portfolio
+                    </p>
+                    <h4 className="mt-1 text-lg font-semibold text-white">
+                      Your Portfolio
+                    </h4>
+                  </div>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
+                    {summary.holdings.length} active
+                  </span>
+                </div>
+
+                {summary.holdings.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-white/10 bg-slate-900/70 px-4 py-6 text-sm text-slate-400">
+                    ยังไม่มีหุ้นคงเหลือในพอร์ตตอนนี้
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-3 lg:hidden">
+                      {summary.holdings.map((holding) => (
+                        <article
+                          key={holding.ticker}
+                          className="rounded-[1.6rem] border border-white/10 bg-slate-950/60 px-4 py-4 shadow-lg shadow-slate-950/20"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-lg font-semibold text-white">
+                                {holding.ticker}
+                              </p>
+                              <p className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-400">
+                                Active Holding
+                              </p>
+                            </div>
+                            <div
+                              className={[
+                                "text-right text-sm font-semibold",
+                                holdingTone(holding.unrealizedGainLossThb),
+                              ].join(" ")}
+                            >
+                              {holding.unrealizedGainLossThb >= 0 ? "+" : ""}
+                              ฿{formatMoney(holding.unrealizedGainLossThb)}
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid gap-2 text-sm text-slate-200">
+                            <p>คงเหลือ: {holding.quantity.toLocaleString("th-TH", { maximumFractionDigits: 6 })} หุ้น</p>
+                            <p>ต้นทุนเฉลี่ย: ฿{formatMoney(holding.averageCostThb)} / หุ้น</p>
+                            <p>มูลค่าปัจจุบัน: ฿{formatMoney(holding.currentValueThb)}</p>
+                            <p className={holdingTone(holding.unrealizedGainLossThb)}>
+                              Unrealized Gain/Loss: ฿{formatMoney(holding.unrealizedGainLossThb)}
+                            </p>
+                            <p className="text-slate-400">
+                              ราคาอ้างอิงล่าสุด:{" "}
+                              {holding.latestPriceUsd === null
+                                ? "-"
+                                : `${holding.latestPriceUsd.toLocaleString("th-TH", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 4,
+                                  })} USD`}
+                            </p>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+
+                    <div className="hidden overflow-hidden rounded-[1.6rem] border border-white/10 bg-slate-950/60 lg:block">
+                      <table className="min-w-full divide-y divide-white/10 text-sm text-slate-200">
+                        <thead className="bg-white/5 text-xs uppercase tracking-[0.22em] text-slate-400">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-medium">Ticker</th>
+                            <th className="px-4 py-3 text-left font-medium">Quantity</th>
+                            <th className="px-4 py-3 text-left font-medium">Average Cost</th>
+                            <th className="px-4 py-3 text-left font-medium">Current Value</th>
+                            <th className="px-4 py-3 text-left font-medium">Unrealized Gain/Loss</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {summary.holdings.map((holding) => (
+                            <tr key={holding.ticker} className="hover:bg-white/[0.03]">
+                              <td className="px-4 py-3 align-top text-white">
+                                <div className="font-semibold">{holding.ticker}</div>
+                                <div className="mt-1 text-xs text-slate-500">
+                                  {holding.latestPriceUsd === null
+                                    ? "No latest price"
+                                    : `ล่าสุด ${holding.latestPriceUsd.toLocaleString("th-TH", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 4,
+                                      })} USD`}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 align-top text-slate-300">
+                                {holding.quantity.toLocaleString("th-TH", {
+                                  maximumFractionDigits: 6,
+                                })}
+                              </td>
+                              <td className="px-4 py-3 align-top text-slate-300">
+                                ฿{formatMoney(holding.averageCostThb)}
+                              </td>
+                              <td className="px-4 py-3 align-top text-slate-300">
+                                ฿{formatMoney(holding.currentValueThb)}
+                              </td>
+                              <td
+                                className={[
+                                  "px-4 py-3 align-top font-medium",
+                                  holdingTone(holding.unrealizedGainLossThb),
+                                ].join(" ")}
+                              >
+                                ฿{formatMoney(holding.unrealizedGainLossThb)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+
+                {summary.closedPositions.length > 0 ? (
+                  <div className="rounded-[1.6rem] border border-white/10 bg-white/5 px-4 py-4">
+                    <p className="text-sm font-semibold text-white">Closed Positions</p>
+                    <p className="mt-1 text-sm text-slate-400">
+                      สถานะที่ขายออกหมดแล้วจะแยกไว้ตรงนี้
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {summary.closedPositions.map((holding) => (
+                        <span
+                          key={holding.ticker}
+                          className="rounded-full border border-white/10 bg-slate-900/70 px-3 py-1 text-xs text-slate-300"
+                        >
+                          {holding.ticker}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </section>
 
               <section className="space-y-3">
